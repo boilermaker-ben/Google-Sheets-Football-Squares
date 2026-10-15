@@ -1,0 +1,416 @@
+<!DOCTYPE html>
+  <html>
+    <head>
+      <base target="_blank">
+      <style>
+        * { box-sizing: border-box; }
+        body {
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+          color: #202124;
+          padding: 14px 16px 20px;
+          margin: 0;
+          line-height: 1.45;
+          font-size: 13px;
+        }
+        
+        /* Title Header */
+        .header {
+          padding-bottom: 10px;
+          border-bottom: 1px solid #dadce0;
+          margin-bottom: 14px;
+        }
+        .title {
+          font-size: 16px;
+          font-weight: 600;
+          color: #1a73e8;
+          margin: 0 0 2px 0;
+        }
+        .subtitle {
+          font-size: 11.5px;
+          color: #5f6368;
+        }
+        
+        /* Step Styles */
+        .step {
+          margin-bottom: 15px;
+        }
+        .step-header {
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          font-weight: 600;
+          color: #202124;
+          margin-bottom: 5px;
+        }
+        .step-num {
+          background-color: #1a73e8;
+          color: white;
+          font-size: 11px;
+          font-weight: 700;
+          width: 20px;
+          height: 20px;
+          border-radius: 50%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+        }
+        .step-body {
+          padding-left: 28px;
+          color: #3c4043;
+        }
+        
+        /* Google Menu Item Badge (Extensions > Apps Script) */
+        .menu-item-badge {
+          display: inline-flex;
+          align-items: center;
+          background: #ffffff;
+          border: 1px solid #dadce0;
+          padding: 2px 8px 2px 6px;
+          border-radius: 4px;
+          font-size: 12.5px;
+          font-weight: 500;
+          color: #3c4043;
+          vertical-align: middle;
+          gap: 6px;
+          box-shadow: 0 1px 2px rgba(60,64,67,0.08);
+        }
+        .menu-text-only {
+          display: inline-block;
+          background: #ffffff;
+          border: 1px solid #dadce0;
+          padding: 2px 7px;
+          border-radius: 4px;
+          font-size: 12.5px;
+          font-weight: 500;
+          color: #3c4043;
+          vertical-align: middle;
+        }
+        
+        /* Authentic Google UI Badges */
+        .ui-deploy-btn {
+          display: inline-flex;
+          align-items: center;
+          background-color: #1a73e8;
+          color: #ffffff;
+          font-weight: 500;
+          font-size: 12px;
+          padding: 3px 10px 3px 12px;
+          border-radius: 4px;
+          box-shadow: 0 1px 2px rgba(60,64,67,0.3);
+          vertical-align: middle;
+          user-select: none;
+          gap: 6px;
+        }
+        .ui-deploy-btn svg {
+          fill: #ffffff;
+          width: 8px;
+          height: 8px;
+        }
+        
+        .ui-copy-btn {
+          display: inline-flex;
+          align-items: center;
+          color: #1a73e8;
+          font-weight: 500;
+          font-size: 13px;
+          padding: 2px 4px;
+          border-radius: 4px;
+          vertical-align: middle;
+          gap: 5px;
+          user-select: none;
+        }
+        .ui-copy-btn svg {
+          fill: #1a73e8;
+          width: 15px;
+          height: 15px;
+        }
+        
+        /* Settings Card */
+        .settings-card {
+          background-color: #f8fafd;
+          border: 1px solid #c2e7ff;
+          border-radius: 6px;
+          padding: 10px 12px;
+          margin: 7px 0;
+          font-size: 12px;
+        }
+        .setting-row {
+          margin-bottom: 6px;
+        }
+        .setting-row:last-child {
+          margin-bottom: 0;
+        }
+        .setting-label {
+          font-weight: 600;
+          color: #1a73e8;
+        }
+        .setting-note {
+          font-size: 11px;
+          color: #5f6368;
+          margin-top: 1px;
+        }
+
+        /* Compact URL Shorteners */
+        .shorten-box {
+          background: #f8f9fa;
+          border: 1px solid #e8eaed;
+          border-radius: 6px;
+          padding: 8px 11px;
+          margin-top: 10px;
+          font-size: 11.5px;
+        }
+        .shorten-title {
+          font-weight: 600;
+          color: #1e8e3e;
+          margin-bottom: 4px;
+          display: flex;
+          align-items: center;
+          gap: 4px;
+        }
+        .shorten-links {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 5px;
+          margin-top: 5px;
+        }
+        .short-tag {
+          background: #ffffff;
+          border: 1px solid #dadce0;
+          padding: 2px 7px;
+          border-radius: 12px;
+          color: #1a73e8;
+          text-decoration: none;
+          font-size: 11px;
+        }
+        .short-tag:hover {
+          border-color: #1a73e8;
+          background: #f8fafd;
+        }
+      </style>
+    </head>
+    <body>
+
+      <div class="header">
+        <div class="subtitle">Steps to create a player picker link:</div>
+      </div>
+
+      <!-- Step 1: With the authentic Apps Script Icon & Menu Badge -->
+      <div class="step">
+        <div class="step-header">
+          <span class="step-num">1</span>
+          <span>Open Apps Script</span>
+        </div>
+        <div class="step-body">
+          In the Google Sheets top menu, click:
+          <div style="margin: 6px 0;">
+            <span class="menu-text-only">Extensions</span>
+            &nbsp;&rsaquo;&nbsp;
+            <span class="menu-item-badge">
+              Apps Script
+            </span>
+          </div>
+        </div>
+      </div>
+
+    <!-- Step 2 -->
+    <div class="step">
+      <div class="step-header">
+        <span class="step-num">2</span>
+        <span>Start Deployment</span>
+      </div>
+      <div class="step-body">
+        In the upper-right corner of the editor, click:
+        <div style="margin: 6px 0;">
+          <span class="ui-deploy-btn">
+            Deploy
+            <svg viewBox="0 0 100 100"><polygon points="0,0 100,0 50,75"/></svg>
+          </span>
+        </div>
+        Then select <b>New deployment</b>.
+      </div>
+    </div>
+
+    <!-- Step 3 -->
+    <div class="step">
+      <div class="step-header">
+        <span class="step-num">3</span>
+        <span>Choose Type</span>
+      </div>
+      <div class="step-body">
+        Click the gear icon ⚙️ (<b>Select type</b>) on the left and choose <b>Web app</b>.
+      </div>
+    </div>
+
+    <!-- Step 4 -->
+    <div class="step">
+      <div class="step-header">
+        <span class="step-num">4</span>
+        <span>Configure Settings</span>
+      </div>
+      <div class="step-body">
+        <style>
+          .mock-form {
+            background: #ffffff;
+            border: 1px solid #dadce0;
+            border-radius: 6px;
+            padding: 10px 10px 8px;
+            margin: 6px 0;
+            font-family: Roboto, -apple-system, sans-serif;
+          }
+          .mock-header {
+            font-size: 11px;
+            font-weight: 700;
+            color: #3c4043;
+            margin-bottom: 4px;
+          }
+          .mock-section-title {
+            font-size: 11px;
+            font-weight: 700;
+            color: #3c4043;
+            margin: 8px 0 4px;
+          }
+          .mock-input-box {
+            border: 1px solid #dadce0;
+            border-radius: 4px;
+            padding: 6px 8px;
+            font-size: 11px;
+            color: #5f6368;
+            background: #ffffff;
+          }
+          .mock-fieldset {
+            position: relative;
+            border: 1.5px solid #1a73e8; /* Highlighted critical */
+            border-radius: 4px;
+            margin: 0 0 4px 0;
+            padding: 4px 8px 5px;
+            background: #f8fafd;
+          }
+          .mock-legend {
+            font-size: 9.5px;
+            font-weight: 600;
+            color: #1a73e8;
+            padding: 0 4px;
+            margin-left: 2px;
+            line-height: 1;
+          }
+          .mock-select-val {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 11px;
+            color: #202124;
+            font-weight: 500;
+          }
+          .mock-select-val span {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            padding-right: 4px;
+          }
+          .mock-caret {
+            width: 0;
+            height: 0;
+            border-left: 4px solid transparent;
+            border-right: 4px solid transparent;
+            border-top: 5px solid #5f6368;
+            flex-shrink: 0;
+          }
+          .mock-helper-text {
+            font-size: 9.5px;
+            color: #5f6368;
+            line-height: 1.25;
+            margin: 2px 2px 7px;
+          }
+          .critical-badge {
+            display: inline-block;
+            background: #ffe3c4;
+            color: #e07400;
+            font-size: 9px;
+            font-weight: 700;
+            padding: 0 4px;
+            border-radius: 3px;
+            margin-left: 4px;
+            vertical-align: middle;
+          }
+        </style>
+
+        <div class="mock-form">
+          <!-- Description -->
+          <div class="mock-header">
+            Description <span style="font-weight:normal; font-size:10px; color:#70757a;">(optional/anything)</span>
+          </div>
+          <div class="mock-input-box">
+            NFL Squares
+          </div>
+
+          <!-- Web App Section -->
+          <div class="mock-section-title">Web app</div>
+
+          <!-- Execute as (Critical) -->
+          <fieldset class="mock-fieldset">
+            <legend class="mock-legend">Execute as <span class="critical-badge">MUST BE</span></legend>
+            <div class="mock-select-val">
+              <span title="My Email"><b>Me</b> (you@gmail.com)</span>
+              <div class="mock-caret"></div>
+            </div>
+          </fieldset>
+          <div class="mock-helper-text">
+            The web app will be authorized to run using your account data.
+          </div>
+
+          <!-- Who has access (Critical) -->
+          <fieldset class="mock-fieldset">
+            <legend class="mock-legend">Who has access <span class="critical-badge">MUST BE</span></legend>
+            <div class="mock-select-val">
+              <span><b>Anyone</b></span>
+              <div class="mock-caret"></div>
+            </div>
+          </fieldset>
+          <div class="mock-helper-text">
+            Allows players to choose squares without needing a Google account.
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Step 5 -->
+    <div class="step">
+      <div class="step-header">
+        <span class="step-num">5</span>
+        <span>Deploy &amp; Copy URL</span>
+      </div>
+      <div class="step-body">
+        Click <div style="margin: 6px 0;">
+          <span class="ui-deploy-btn">
+            Deploy
+          </span>
+        </div> (grant permissions if prompted), then click:
+        <div style="margin: 5px 0;">
+          <span class="ui-copy-btn">
+            <svg viewBox="0 0 24 24">
+              <path d="M16 1H4C2.9 1 2 1.9 2 3V17H4V3H16V1ZM19 5H8C6.9 5 6 5.9 6 7V21C6 22.1 6.9 23 8 23H19C20.1 23 21 22.1 21 21V7C21 5.9 20.1 5 19 5ZM19 21H8V7H19V21Z"/>
+            </svg>
+            Copy
+          </span>
+        </div>
+        to copy your Web App URL.
+        
+        <b>Refresh this page</b> to add a menu item to open/copy the "Form" you've created.
+      </div>
+    </div>
+
+    <!-- Shorten URL Box -->
+    <div class="shorten-box">
+      <div class="shorten-title">✂️ Free URL Shorteners</div>
+      Paste your long link into one of these to create an easy custom link (e.g. <code>/superbowl-squares</code>):
+      <div class="shorten-links">
+        <a class="short-tag" href="https://tinyurl.com">TinyURL (No login)</a>
+        <a class="short-tag" href="https://dub.co">Dub.co</a>
+        <a class="short-tag" href="https://t.ly">T.ly</a>
+        <a class="short-tag" href="https://bitly.com">Bitly</a>
+      </div>
+    </div>
+
+  </body>
+</html>
