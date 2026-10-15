@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+      * { box-sizing: border-box; }
+      body { font-family: 'Montserrat', Arial, sans-serif; padding: 0; margin: 0; background-color: #FFFFFF; font-size: 13px; color: #202124; }
+      
+      /* Loading Overlay */
+      #loading-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(255, 255, 255, 0.85); display: flex; justify-content: center; align-items: center; z-index: 200; transition: opacity 0.3s ease; }
+      .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #D50A0A; border-radius: 50%; width: 34px; height: 34px; animation: spin 1s linear infinite; }
+      @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+      .hidden { display: none !important; }
+
+      /* Confirmation Modal Overlay */
+      .confirm-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.55);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 100;
+        padding: 10px;
+      }
+      .confirm-dialog {
+        background: #fff;
+        border-radius: 8px;
+        padding: 16px;
+        width: 100%;
+        max-width: 275px;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.25);
+        font-family: 'Montserrat', Arial, sans-serif;
+      }
+      .confirm-title {
+        margin: 0 0 10px 0;
+        color: #013369;
+        font-size: 14px;
+        font-weight: 800;
+        border-bottom: 1px solid #E8EAED;
+        padding-bottom: 6px;
+      }
+      .confirm-detail {
+        font-size: 12px;
+        margin-bottom: 6px;
+        text-align: left;
+        line-height: 1.35;
+        color: #202124;
+      }
+      .confirm-detail strong {
+        color: #5E5E5E;
+      }
+
+      /* Top Header */
+      .card-header-top { background-color: #013369; color: white; padding: 16px 14px; text-align: left; }
+      .section-header-big { font-size: 15px; color: #FFFFFF; font-weight: 800; display: flex; align-items: center; justify-content: space-between; }
+      .section-header-subtitle { font-size: 11px; color: #DDDDDD; font-weight: 500; margin-top: 3px; }
+
+      /* Toggle Header Style */
+      .card-header { background-color: #B0B0B0; color: white; font-weight: 700; padding: 12px; text-align: left; transition: background-color 0.3s ease; }
+      .card-header.active { background-color: #5E5E5E; }
+      .card-header-text-only { background-color: #5E5E5E; color: white; font-weight: 700; padding: 9px 14px; text-align: left; font-size: 12.5px; }
+
+      .card-section { padding: 12px 14px; border-bottom: 1px solid #E8EAED; }
+      .input-label { font-size: 11.5px; font-weight: 600; color: #202124; margin-bottom: 3px; display: block; }
+      .text-input { width: 100%; padding: 7px 9px; border: 1px solid #dadce0; border-radius: 4px; font-size: 13px; font-family: inherit; margin-top: 4px; margin-bottom: 8px; }
+      .text-input:focus { outline: none; border-color: #D50A0A; }
+      .text-input-small { width: 110%; padding: 7px 9px; border: 1px solid #dadce0; border-radius: 4px; font-size: 10px; font-family: inherit; margin-top: 4px; margin-bottom: 8px; }
+      .text-input-small:focus { outline: none; border-color: #D50A0A; }
+
+      /* Matchup Row: [Dropdown] @ [Dropdown] */
+      .matchup-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 10px; }
+      .dropdown-team { flex: 1; padding: 8px; border: 1px solid #dadce0; border-radius: 5px; font-size: 13px; font-weight: 700; font-family: inherit; text-align: center; background-color: #f8f9fa; cursor: pointer; }
+      .dropdown-team.error-border { border-color: #D50A0A !important; background-color: #FFF0F0; }
+      .at-symbol { font-size: 14px; font-weight: 800; color: #5E5E5E; user-select: none; }
+
+      /* Stacked Matchup Preview Banners with VS Line */
+      .team-banner-stack { position: relative; display: flex; flex-direction: column; border-radius: 6px; overflow: hidden; margin-bottom: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.12); }
+      .team-banner { display: flex; align-items: center; justify-content: space-between; padding: 9px 12px; font-weight: 700; font-size: 12.5px; transition: all 0.25s ease; min-height: 38px; }
+      .team-left { display: flex; align-items: center; gap: 8px; }
+      .team-mascot { font-size: 18px; line-height: 1; }
+      .team-name { font-weight: 700; font-size: 12.5px; }
+      .banner-tag { font-size: 9.5px; font-weight: 800; opacity: 0.85; text-transform: uppercase; letter-spacing: 0.5px; }
+      
+      .vs-divider { position: relative; height: 1px; background-color: rgba(255,255,255,0.4); z-index: 2; display: flex; align-items: center; justify-content: center; }
+      .vs-badge { background-color: #202124; color: #FFFFFF; font-size: 9px; font-weight: 800; padding: 1px 6px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.7); line-height: 1.2; }
+
+      /* Tooltip Styling */
+      .tooltip { position: relative; display: inline-block; cursor: help; width: 100%; }
+      .tooltip .tooltiptext { visibility: hidden; font-size: 10pt; width: 220px; background-color: #ffffff; border-radius: 6px; border: 2px solid #D50A0A; color: #000000; text-align: center; padding: 6px; position: absolute; z-index: 100; bottom: 125%; left: 50%; margin-left: -110px; opacity: 0; transition: opacity 0.3s; box-shadow: 0 2px 8px rgba(0,0,0,0.15); pointer-events: none; }
+      .tooltip:hover .tooltiptext { visibility: visible; opacity: 1; }
+
+      /* Toggle Slider */
+      .switch-row { display: flex; justify-content: space-between; align-items: center; }
+      .switch { position: relative; width: 36px; height: 20px; flex-shrink: 0; }
+      .switch input { opacity: 0; width: 0; height: 0; }
+      .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: 0.3s; border-radius: 10px; }
+      .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 2px; bottom: 2px; background-color: white; transition: 0.3s; border-radius: 50%; }
+      input:checked + .slider { background-color: #D50A0A; }
+      input:checked + .slider:before { transform: translateX(16px); }
+
+      /* Toggle Small Slider */
+      .switch-row-small { display: flex; justify-content: space-between; align-items: center; }
+      .switch-small { position: relative; width: 30px; height: 16px; flex-shrink: 0; }
+      .switch-small input { opacity: 0; width: 0; height: 0; }
+      .slider-small { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: 0.3s; border-radius: 10px; }
+      .slider-small:before { position: absolute; content: ""; height: 12px; width: 12px; left: 2px; bottom: 2px; background-color: white; transition: 0.3s; border-radius: 50%; }
+      input:checked + .slider-small { background-color: #D50A0A; }
+      input:checked + .slider-small:before { transform: translateX(12px); }
+
+      /* Chronological Payout Stack */
+      .payout-summary { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+      .pot-amount { font-size: 15px; font-weight: 800; color: #013369; }
+      .total-check { font-size: 11px; font-weight: 700; padding: 2px 6px; border-radius: 3px; }
+      .total-valid { background-color: #e6f4ea; color: #137333; }
+      .total-invalid { background-color: #fce8e6; color: #c5221f; }
+
+      .payout-stack { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+      .payout-card { background: #FAFAFA; border: 1px solid #E8EAED; border-radius: 4px; padding: 6px 10px; display: flex; align-items: center; justify-content: space-between; }
+      .payout-card.commish { background: #FFF9E6; border-color: #FFE082; }
+      .payout-card-left { font-size: 12px; font-weight: 700; color: #3c4043; display: flex; align-items: center; gap: 6px; }
+      .payout-card-right { display: flex; align-items: center; gap: 6px; }
+      .payout-percent-input { width: 56px; padding: 4px 5px; border: 1px solid #dadce0; border-radius: 3px; font-size: 12px; font-family: inherit; font-weight: 700; text-align: right; }
+      .payout-amt { font-size: 12px; font-weight: 700; color: #013369; min-width: 48px; text-align: right; }
+
+      /* Payment Details Section */
+      .payment-pill-group { display: flex; gap: 4px; margin-top: 6px; margin-bottom: 8px; }
+      .payment-pill { flex: 1; cursor: pointer; margin: 0; }
+      .payment-pill input[type="radio"] { display: none; }
+      .payment-pill-label { display: block; padding: 6px 2px; text-align: center; font-size: 11px; font-weight: 700; color: #546E7A; background-color: #ECEFF1; border: 1px solid #CFD8DC; border-radius: 4px; transition: all 0.2s ease; user-select: none; }
+      .payment-pill input[type="radio"]:checked + .payment-pill-label { background-color: #013369; color: #FFFFFF; border-color: #013369; }
+      .payment-pill:hover input[type="radio"]:not(:checked) + .payment-pill-label { background-color: #CFD8DC; color: #202124; }
+
+      /* Buttons */
+      .button-section { padding: 14px; background-color: #f8f9fa; }
+      .btn { width: 100%; padding: 10px; border: none; border-radius: 5px; cursor: pointer; font-size: 13.5px; font-weight: 700; font-family: inherit; transition: background 0.2s; }
+      .btn-primary { background-color: #013369; color: white; }
+      .btn-primary:hover { background-color: #2067b3; }
+      .btn-cancel { background-color: #e0e0e0; color: #333; }
+      .btn-cancel:hover { background-color: #d0d0d0; }
+      
+      /* Payment Styles */
+      .pay-row { display: grid; grid-template-columns: auto 78px 1fr; gap: 8px; align-items: center; margin-bottom: 8px; }
+      .pay-row .text-input { margin-bottom: 0; }
+      .pay-row .pay-name { font-size: 0.75rem; font-weight: 600; }
+      .pay-row.multiline textarea { grid-column: 1 / -1; min-height: 64px; resize: vertical; font-family: inherit; }
+      .pay-row input:disabled, .pay-row textarea:disabled { background: #f1f3f4; opacity: 0.6; }
+    </style>
+  </head>
+  <body>
+    <!-- Loading Overlay -->
+    <div id="loading-overlay">
+      <div class="spinner"></div>
+    </div>
+
+    <!-- Confirmation Modal Overlay -->
+    <div class="confirm-overlay" id="confirmOverlay" style="display: none;">
+      <div class="confirm-dialog">
+        <div class="confirm-title">Confirm Configuration</div>
+        <div class="confirm-detail"><strong>Group:</strong> <span id="confirmGroupName"></span></div>
+        <div class="confirm-detail"><strong>Matchup:</strong> <span id="confirmMatchup"></span></div>
+        <div class="confirm-detail"><strong>Limits:</strong> <span id="confirmLimits"></span></div>
+        <div class="confirm-detail"><strong>Entry Fee:</strong> <span id="confirmCost"></span></div>
+        <div class="confirm-detail" id="confirmPaymentRow"><strong>Payment:</strong> <span id="confirmPayment"></span></div>
+
+        <div style="display:flex; gap:6px; margin-top:14px;">
+          <button type="button" class="btn btn-cancel" onclick="hideConfirm()">Back</button>
+          <button type="button" class="btn btn-primary" id="finalConfirmBtn" onclick="submitFinalConfig()">Confirm &amp; Save</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Header -->
+    <div class="card-header-top">
+      <div class="section-header-big">🏈 Squares Setup</div>
+      <div class="section-header-subtitle">Matchup, Limits &amp; Payouts</div>
+    </div>
+
+    <form id="configForm" onsubmit="handleFormSubmit(event)">
+      
+      <!-- 0. Name Your Group Section -->
+      <div class="card-section">
+        <label class="input-label" for="groupName">Name your group</label>
+        <div class="tooltip">
+          <input type="text" id="groupName" class="text-input" placeholder="Enter custom group name" name="groupName" style="margin-bottom: 0;">
+          <span class="tooltiptext">Will revert to "NFL Squares" if blank</span>
+        </div>
+      </div>
+
+      <!-- 1. Matchup & Limits Section -->
+      <div class="card-header-text-only">
+        Game Matchup &amp; Limits
+      </div>
+      <div class="card-section">
+        <label class="input-label">Select Matchup (Away @ Home)</label>
+        
+        <!-- Dropdowns in one line -->
+        <div class="matchup-row">
+          <select id="awayTeam" name="awayTeam" class="dropdown-team" onchange="renderMatchupBanners()"></select>
+          <span class="at-symbol">@</span>
+          <select id="homeTeam" name="homeTeam" class="dropdown-team" onchange="renderMatchupBanners()"></select>
+        </div>
+
+        <!-- Stacked Away & Home Color Banners with VS Divider -->
+        <div class="team-banner-stack">
+          <!-- Away Banner -->
+          <div id="awayBanner" class="team-banner">
+            <div class="team-left">
+              <span id="awayMascotDisplay" class="team-mascot"></span>
+              <span id="awayNameDisplay" class="team-name"></span>
+            </div>
+            <span class="banner-tag">AWAY</span>
+          </div>
+
+          <!-- VS Divider Line -->
+          <div class="vs-divider">
+            <span class="vs-badge">VS</span>
+          </div>
+
+          <!-- Home Banner -->
+          <div id="homeBanner" class="team-banner">
+            <div class="team-left">
+              <span id="homeMascotDisplay" class="team-mascot"></span>
+              <span id="homeNameDisplay" class="team-name"></span>
+            </div>
+            <span class="banner-tag">HOME</span>
+          </div>
+        </div>
+
+        <!-- Full-Width Stacked Limits with Tooltips -->
+        <div style="margin-top: 10px;">
+          <!-- Header Line -->
+          <div style="font-weight: bold; margin-bottom: 8px;">Entry Limits</div>
+          
+          <!-- Two Column Container -->
+          <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px;">
+            
+            <!-- Min Column -->
+            <div>
+              <label class="input-label" for="minSquares">
+                <span class="tooltip">Min
+                  <span class="tooltiptext">Users must<br>select at least<br>this many.</span>
+                </span>
+              </label>
+              <input type="number" id="minSquares" name="minSquares" class="text-input" min="1" max="100" value="1">
+            </div>
+
+            <!-- Max Column -->
+            <div>
+              <label class="input-label" for="maxSquares">
+                <span class="tooltip">Max
+                  <span class="tooltiptext">Users cannot<br>select more than<br>this amount.</span>
+                </span>
+              </label>
+              <input type="number" id="maxSquares" name="maxSquares" class="text-input" min="1" max="100" value="10">
+            </div>
+
+          </div>
+        </div>
+        <!-- One entry per person -->
+        <div class="switch-row" style="margin-top: 12px;">
+          <div class="tooltip switch-label">One Entry Per Person
+            <span class="tooltiptext">When on, the Web App form shows only a name box and color picker. People can't come back to add more squares.</span>
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="disableAdditionalResponses" name="disableAdditionalResponses">
+            <span class="slider"></span>
+          </label>
+        </div>
+      </div>
+
+      <!-- 2. Paid Entry & Payouts Section -->
+      <div class="card-header active" id="payoutHeader">
+        <div class="switch-row">
+          <div class="section-header-big"><span>💵 Paid Entry &amp; Payouts</span></div>
+          <label class="switch">
+            <input type="checkbox" id="isPaid" name="isPaid" onchange="updatePaidToggle()">
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div class="section-header-subtitle">Toggle off for a free, casual board</div>
+      </div>
+
+      <div id="payoutOptions" class="card-section">
+        <label class="input-label">Cost per Square ($)</label>
+        <input type="number" id="cost" name="cost" class="text-input" min="0" step="any" placeholder="10" oninput="calculatePayouts()">
+
+        <!-- Pot Summary -->
+        <div class="payout-summary" style="margin-top: 8px;">
+          <div>
+            <div class="input-label" style="margin: 0;">Total Pot (100 Sq)</div>
+            <div class="pot-amount" id="totalPotDisplay">$0</div>
+          </div>
+          <div id="splitStatus" class="total-check total-valid">100%</div>
+        </div>
+
+        <!-- Chronological Vertical Payout Stack -->
+        <div class="payout-stack">
+          <!-- Commissioner's Cut -->
+          <div class="payout-card commish">
+            <div class="payout-card-left">🎩 Commish Cut</div>
+            <div class="payout-card-right">
+              <input type="number" id="commishCut" class="payout-percent-input" value="0" min="0" max="100" step="0.1" oninput="handleCommishChange()"> %
+              <div class="payout-amt" id="commishAmt">$0</div>
+            </div>
+          </div>
+
+          <!-- Q1 -->
+          <div class="payout-card">
+            <div class="payout-card-left">🕒 1st Quarter</div>
+            <div class="payout-card-right">
+              <input type="number" id="q1Pct" class="payout-percent-input" value="25" min="0" max="100" step="0.1" oninput="calculatePayouts()"> %
+              <div class="payout-amt" id="q1Amt">$0</div>
+            </div>
+          </div>
+
+          <!-- Q2 / Halftime -->
+          <div class="payout-card">
+            <div class="payout-card-left">🕕 Halftime</div>
+            <div class="payout-card-right">
+              <input type="number" id="q2Pct" class="payout-percent-input" value="25" min="0" max="100" step="0.1" oninput="calculatePayouts()"> %
+              <div class="payout-amt" id="q2Amt">$0</div>
+            </div>
+          </div>
+
+          <!-- Q3 -->
+          <div class="payout-card">
+            <div class="payout-card-left">🕘 3rd Quarter</div>
+            <div class="payout-card-right">
+              <input type="number" id="q3Pct" class="payout-percent-input" value="25" min="0" max="100" step="0.1" oninput="calculatePayouts()"> %
+              <div class="payout-amt" id="q3Amt">$0</div>
+            </div>
+          </div>
+
+          <!-- Final -->
+          <div class="payout-card">
+            <div class="payout-card-left">🏆 Final Score</div>
+            <div class="payout-card-right">
+              <input type="number" id="q4Pct" class="payout-percent-input" value="25" min="0" max="100" step="0.1" oninput="calculatePayouts()"> %
+              <div class="payout-amt" id="q4Amt">$0</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. Payment Methods -->
+        <div style="margin-top: 14px; padding-top: 10px; border-top: 1px dashed #DADCE0;">
+          <label class="input-label">
+            <span class="tooltip">Payment Methods
+              <span class="tooltiptext">Turn on each method you accept. Double-check these entries: they are added to the Web App form that participants see.</span>
+            </span>
+          </label>
+          <div id="paymentMethodsContainer"></div>
+        </div>
+      </div>
+      <!-- Save Button -->
+      <div class="button-section">
+        <button type="submit" class="btn btn-primary" id="saveBtn">Save Settings</button>
+      </div>
+    </form>
+
+    <script>
+      let NFL_DATA_MAP = {};
+      let pendingFormData = null;
+      const PAYMENT_METHODS = [
+        { key: 'paypal',  label: 'PayPal',   placeholder: 'Email or PayPal.me/name' },
+        { key: 'venmo',   label: 'Venmo',    placeholder: '@username' },
+        { key: 'cashapp', label: 'Cash App', placeholder: '$cashtag' },
+        { key: 'zelle',   label: 'Zelle',    placeholder: 'Email or phone' },
+        { key: 'other',   label: 'Other',    placeholder: 'Payment instructions (e.g. "Cash at the party", mailing address...)', multiline: true }
+      ];
+
+      window.onload = function() {
+        buildPaymentRows();
+        google.script.run
+          .withSuccessHandler(populateForm)
+          .withFailureHandler(handleError)
+          .getSquaresConfig();
+      };
+
+      function populateForm(data) {
+        NFL_DATA_MAP = data.nflData || {};
+
+        document.getElementById('groupName').value = data.groupName || 'NFL Squares';
+
+        const awaySelect = document.getElementById('awayTeam');
+        const homeSelect = document.getElementById('homeTeam');
+        const teamCodes = Object.keys(NFL_DATA_MAP).sort();
+
+        teamCodes.forEach(code => {
+          awaySelect.add(new Option(code, code));
+          homeSelect.add(new Option(code, code));
+        });
+
+        function findCodeByFullName(inputVal, fallbackCode) {
+          if (!inputVal) return fallbackCode;
+          const clean = String(inputVal).trim().toUpperCase();
+          if (NFL_DATA_MAP[clean]) return clean;
+          const found = teamCodes.find(code => 
+            NFL_DATA_MAP[code].name.toUpperCase() === clean
+          );
+          return found || fallbackCode;
+        }
+
+        awaySelect.value = findCodeByFullName(data.awayTeam, 'KC');
+        homeSelect.value = findCodeByFullName(data.homeTeam, 'IND');
+
+        renderMatchupBanners();
+
+        // Limits
+        document.getElementById('minSquares').value = data.minSquares || 1;
+        document.getElementById('maxSquares').value = data.maxSquares !== undefined ? data.maxSquares : 10;
+
+        // Paid Slider & Pricing
+        document.getElementById('isPaid').checked = data.isPaid;
+        document.getElementById('cost').value = data.cost || 10;
+        document.getElementById('commishCut').value = data.commishCut || 0;
+
+        if (data.payoutSplits && data.payoutSplits.length === 4) {
+          document.getElementById('q1Pct').value = data.payoutSplits[0];
+          document.getElementById('q2Pct').value = data.payoutSplits[1];
+          document.getElementById('q3Pct').value = data.payoutSplits[2];
+          document.getElementById('q4Pct').value = data.payoutSplits[3];
+        }
+
+        populatePaymentMethods(data.paymentMethods);
+        document.getElementById('disableAdditionalResponses').checked = !!data.disableAdditionalResponses;
+  
+        updatePaidToggle();
+        calculatePayouts();
+        hideLoader();
+      }
+
+      function renderMatchupBanners() {
+        const awaySelect = document.getElementById('awayTeam');
+        const homeSelect = document.getElementById('homeTeam');
+        const awayCode = awaySelect.value;
+        const homeCode = homeSelect.value;
+
+        if (awayCode && homeCode && awayCode === homeCode) {
+          awaySelect.classList.add('error-border');
+          homeSelect.classList.add('error-border');
+          alert('⚠️ Matchup Issue: Away and Home teams cannot be the same! Please pick two different teams.');
+        } else {
+          awaySelect.classList.remove('error-border');
+          homeSelect.classList.remove('error-border');
+        }
+
+        const awayObj = NFL_DATA_MAP[awayCode];
+        const homeObj = NFL_DATA_MAP[homeCode];
+
+        if (awayObj) {
+          const bg = awayObj.colors[0];
+          const text = awayObj.colors[1];
+          const banner = document.getElementById('awayBanner');
+          banner.style.backgroundColor = bg;
+          banner.style.color = text;
+          document.getElementById('awayNameDisplay').textContent = awayObj.name;
+          document.getElementById('awayMascotDisplay').textContent = awayObj.mascot;
+        }
+
+        if (homeObj) {
+          const bg = homeObj.colors[1] === "#FFFFFF" ? homeObj.colors[2] : homeObj.colors[1];
+          const text = homeObj.colors[0];
+          const banner = document.getElementById('homeBanner');
+          banner.style.backgroundColor = bg;
+          banner.style.color = text;
+          document.getElementById('homeNameDisplay').textContent = homeObj.name;
+          document.getElementById('homeMascotDisplay').textContent = homeObj.mascot;
+        }
+      }
+
+      function updatePaidToggle() {
+        const isPaid = document.getElementById('isPaid').checked;
+        const header = document.getElementById('payoutHeader');
+        const options = document.getElementById('payoutOptions');
+
+        if (isPaid) {
+          header.classList.add('active');
+          options.classList.remove('hidden');
+          calculatePayouts();
+        } else {
+          header.classList.remove('active');
+          options.classList.add('hidden');
+        }
+      }
+
+      function handleCommishChange() {
+        const commish = Math.min(100, Math.max(0, parseFloat(document.getElementById('commishCut').value) || 0));
+        document.getElementById('commishCut').value = commish;
+
+        const remaining = 100 - commish;
+        const quarterShare = Math.floor((remaining / 4) * 10) / 10;
+        const finalShare = Math.round((remaining - (quarterShare * 3)) * 10) / 10;
+
+        document.getElementById('q1Pct').value = quarterShare;
+        document.getElementById('q2Pct').value = quarterShare;
+        document.getElementById('q3Pct').value = quarterShare;
+        document.getElementById('q4Pct').value = finalShare;
+
+        calculatePayouts();
+      }
+
+      function getTotalPayoutPercent() {
+        const commish = parseFloat(document.getElementById('commishCut').value) || 0;
+        const q1 = parseFloat(document.getElementById('q1Pct').value) || 0;
+        const q2 = parseFloat(document.getElementById('q2Pct').value) || 0;
+        const q3 = parseFloat(document.getElementById('q3Pct').value) || 0;
+        const q4 = parseFloat(document.getElementById('q4Pct').value) || 0;
+        return Math.round((commish + q1 + q2 + q3 + q4) * 10) / 10;
+      }
+
+      function calculatePayouts() {
+        const isPaid = document.getElementById('isPaid').checked;
+        const cost = isPaid ? (parseFloat(document.getElementById('cost').value) || 0) : 0;
+        const totalPot = cost * 100;
+        document.getElementById('totalPotDisplay').textContent = '$' + totalPot.toLocaleString();
+
+        const commish = parseFloat(document.getElementById('commishCut').value) || 0;
+        const q1 = parseFloat(document.getElementById('q1Pct').value) || 0;
+        const q2 = parseFloat(document.getElementById('q2Pct').value) || 0;
+        const q3 = parseFloat(document.getElementById('q3Pct').value) || 0;
+        const q4 = parseFloat(document.getElementById('q4Pct').value) || 0;
+
+        const totalPct = getTotalPayoutPercent();
+        const statusBadge = document.getElementById('splitStatus');
+        statusBadge.textContent = totalPct + '%';
+
+        if (totalPct === 100) {
+          statusBadge.className = 'total-check total-valid';
+        } else {
+          statusBadge.className = 'total-check total-invalid';
+        }
+
+        document.getElementById('commishAmt').textContent = '$' + Math.round((commish / 100) * totalPot).toLocaleString();
+        document.getElementById('q1Amt').textContent = '$' + Math.round((q1 / 100) * totalPot).toLocaleString();
+        document.getElementById('q2Amt').textContent = '$' + Math.round((q2 / 100) * totalPot).toLocaleString();
+        document.getElementById('q3Amt').textContent = '$' + Math.round((q3 / 100) * totalPot).toLocaleString();
+        document.getElementById('q4Amt').textContent = '$' + Math.round((q4 / 100) * totalPot).toLocaleString();
+      }
+
+      function buildPaymentRows() {
+        const container = document.getElementById('paymentMethodsContainer');
+        container.textContent = '';
+
+        PAYMENT_METHODS.forEach(m => {
+          const row = document.createElement('div');
+          row.className = 'pay-row' + (m.multiline ? ' multiline' : '');
+
+          // Slider
+          const sw = document.createElement('label');
+          sw.className = 'switch-small';
+          const chk = document.createElement('input');
+          chk.type = 'checkbox';
+          chk.id = 'payEnabled_' + m.key;
+          chk.onchange = () => {
+            field.disabled = !chk.checked;
+            if (chk.checked) field.focus();
+          };
+          const knob = document.createElement('span');
+          knob.className = 'slider-small';
+          sw.appendChild(chk);
+          sw.appendChild(knob);
+
+          // Name + tooltip
+          const name = document.createElement('div');
+          name.className = 'pay-name';
+          const tip = document.createElement('span');
+          tip.className = 'tooltip';
+          tip.textContent = m.label;
+          const tt = document.createElement('span');
+          tt.className = 'tooltiptext';
+          tt.textContent = m.multiline
+            ? 'Double-check these instructions. They are added to the Web App form for participants.'
+            : 'Double-check this ' + m.label + ' info. It is added to the Web App form for participants.';
+          tip.appendChild(tt);
+          name.appendChild(tip);
+
+          // Handle (single line) or details (multiline)
+          const field = document.createElement(m.multiline ? 'textarea' : 'input');
+          if (!m.multiline) field.type = 'text';
+          field.id = 'payValue_' + m.key;
+          field.className = 'text-input-small';
+          field.placeholder = m.placeholder;
+          field.maxLength = m.multiline ? 500 : 80;
+          field.disabled = true;
+          field.autocomplete = 'off';
+
+          row.appendChild(sw);
+          row.appendChild(name);
+          row.appendChild(field);
+          container.appendChild(row);
+        });
+      }
+
+      function populatePaymentMethods(saved) {
+        saved = saved || {};
+        PAYMENT_METHODS.forEach(m => {
+          const s = saved[m.key] || {};
+          const val = m.multiline ? s.paymentDetails : s.paymentHandle;
+          const chk = document.getElementById('payEnabled_' + m.key);
+          const field = document.getElementById('payValue_' + m.key);
+          chk.checked = !!s.enabled;
+          field.value = val || '';
+          field.disabled = !chk.checked;
+        });
+      }
+
+      // Shape: { paypal: {enabled, paymentHandle}, ..., other: {enabled, paymentDetails} }
+      function collectPaymentMethods() {
+        const out = {};
+        PAYMENT_METHODS.forEach(m => {
+          const enabled = document.getElementById('payEnabled_' + m.key).checked;
+          const val = document.getElementById('payValue_' + m.key).value.trim();
+          out[m.key] = m.multiline
+            ? { enabled: enabled, paymentDetails: val }
+            : { enabled: enabled, paymentHandle: val };
+        });
+        return out;
+      }
+
+      function paymentSummary(pm) {
+        const parts = PAYMENT_METHODS
+          .filter(m => pm[m.key].enabled)
+          .map(m => m.multiline ? m.label + ' (custom instructions)' : m.label + ' (' + pm[m.key].paymentHandle + ')');
+        return parts.length ? parts.join(', ') : 'None set';
+      }
+
+      function handleFormSubmit(e) {
+        e.preventDefault();
+
+        const groupName = document.getElementById('groupName').value.trim() || 'NFL Squares';
+        const away = document.getElementById('awayTeam').value;
+        const home = document.getElementById('homeTeam').value;
+
+        if (away === home) {
+          alert('❌ Cannot Save: Away and Home teams cannot be the same. Please choose two different teams.');
+          return;
+        }
+
+        const isPaid = document.getElementById('isPaid').checked;
+        const cost = isPaid ? parseFloat(document.getElementById('cost').value) || 0 : 0;        
+        const paymentMethods = collectPaymentMethods();
+        const disableAdditionalResponses = document.getElementById('disableAdditionalResponses').checked;
+        const minSq = parseInt(document.getElementById('minSquares').value, 10) || 1;
+        const maxSq = parseInt(document.getElementById('maxSquares').value, 10) || 1;
+
+        if (minSq > maxSq) {
+          alert('❌ Entry Limits Error: Min (' + minSq + ') cannot be greater than Max (' + maxSq + ').');
+          return;
+        }
+
+        if (isPaid) {
+          const empty = PAYMENT_METHODS.filter(m => {
+            const p = paymentMethods[m.key];
+            return p.enabled && !(m.multiline ? p.paymentDetails : p.paymentHandle);
+          });
+          if (empty.length) {
+            alert('❌ Payment Methods: please fill in the details for ' + empty.map(m => m.label).join(', ') + ', or turn them off.');
+            return;
+          }
+        }
+
+        // Store form data for final submission
+        pendingFormData = {
+          groupName: groupName,
+          awayTeam: away,
+          homeTeam: home,
+          minSquares: minSq,
+          maxSquares: maxSq,
+          disableAdditionalResponses: disableAdditionalResponses,
+          isPaid: isPaid,
+          cost: cost,
+          commishCut: parseFloat(document.getElementById('commishCut').value) || 0,
+          payoutSplits: [
+            parseFloat(document.getElementById('q1Pct').value) || 0,
+            parseFloat(document.getElementById('q2Pct').value) || 0,
+            parseFloat(document.getElementById('q3Pct').value) || 0,
+            parseFloat(document.getElementById('q4Pct').value) || 0
+          ],
+          paymentMethods: paymentMethods
+        };
+
+        // Populate and display the custom confirmation modal overlay
+        const awayMascot = NFL_DATA_MAP[away] ? NFL_DATA_MAP[away].mascot : '';
+        const homeMascot = NFL_DATA_MAP[home] ? NFL_DATA_MAP[home].mascot : '';
+
+        document.getElementById('confirmGroupName').textContent = groupName;
+        document.getElementById('confirmMatchup').textContent = `${away} ${awayMascot} @ ${home} ${homeMascot}`;
+        document.getElementById('confirmCost').textContent = isPaid ? `$${cost} / square` : 'Free Board';
+                
+        document.getElementById('confirmLimits').textContent =
+          `${minSq} min / ${maxSq} max` + (disableAdditionalResponses ? ' · one entry per person' : '');
+
+        const paymentRow = document.getElementById('confirmPaymentRow');
+        if (isPaid) {
+          paymentRow.style.display = 'block';
+          document.getElementById('confirmPayment').textContent = paymentSummary(paymentMethods);
+        } else {
+          paymentRow.style.display = 'none';
+        }
+
+        document.getElementById('confirmOverlay').style.display = 'flex';
+      }
+
+      function hideConfirm() {
+        document.getElementById('confirmOverlay').style.display = 'none';
+      }
+
+      function submitFinalConfig() {
+        if (!pendingFormData) return;
+        hideConfirm();
+        showLoader();
+
+        google.script.run
+          .withSuccessHandler(() => {
+            google.script.host.close();
+          })
+          .withFailureHandler(handleError)
+          .processSquaresConfigSubmission(pendingFormData);
+      }
+
+      function showLoader() {
+        document.getElementById('loading-overlay').classList.remove('hidden');
+      }
+
+      function hideLoader() {
+        document.getElementById('loading-overlay').classList.add('hidden');
+      }
+
+      function handleError(err) {
+        hideLoader();
+        alert('Error: ' + err.message);
+      }
+    </script>
+  </body>
+</html>
