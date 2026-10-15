@@ -1,0 +1,1568 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+    <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        font-family: 'Lexend', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        margin: 0;
+        padding: 0;
+        background-color: #f1f5f9;
+        color: #1e293b;
+        min-height: 100vh;
+      }
+
+      /* Header Banner */
+      .app-header {
+        background: #1e293b;
+        color: #ffffff;
+        padding: 10px 18px;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .app-title {
+        font-size: 1.15rem;
+        font-weight: 700;
+        margin: 0;
+      }
+      .pool-tag {
+        font-size: 0.75rem;
+        background: #334155;
+        padding: 4px 8px;
+        border-radius: 4px;
+        color: #cbd5e1;
+        font-weight: 500;
+      }
+
+      /* Matchup Team Banner (Standalone Rounded Capsules & Transparent VS) */
+      .matchup-banner {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 16px;
+        margin-bottom: 12px;
+        background: transparent !important;
+        box-shadow: none !important;
+      }
+      .team-side {
+        flex: 1;
+        max-width: 360px;
+        padding: 8px 16px;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        font-weight: 700;
+        font-size: 0.92rem;
+        border-radius: 8px !important;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+      }
+      .team-side.away {
+        justify-content: flex-end;
+      }
+      .team-side.home {
+        justify-content: flex-start;
+      }
+      .vs-badge {
+        background: transparent !important;
+        color: #64748b;
+        font-size: 0.88rem;
+        font-weight: 800;
+        letter-spacing: 2px;
+        padding: 0 4px;
+      }
+      .team-mascot {
+        font-size: 1.25rem;
+      }
+
+      /* Main Container */
+      .main-container {
+        max-width: 1050px;
+        margin: 12px auto;
+        padding: 0 14px;
+      }
+
+      /* Progress Bar */
+      .progress-container {
+        margin-bottom: 12px;
+      }
+      .progress-labels {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: #64748b;
+        margin-bottom: 5px;
+      }
+      .progress-track {
+        width: 100%;
+        height: 8px;
+        background: #e2e8f0;
+        border-radius: 4px;
+        overflow: hidden;
+      }
+      .progress-fill {
+        height: 100%;
+        width: 0%;
+        background: linear-gradient(90deg, #16a34a, #2563eb);
+        border-radius: 4px;
+        transition: width 0.25s ease;
+      }
+
+      /* Desktop Layout: Horizontal Flex with zero gaps on left */
+      .content-grid {
+        display: flex;
+        align-items: flex-start;
+        gap: 16px;
+      }
+
+      .left-panel {
+        width: 320px;
+        flex-shrink: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      .order-grid {
+        flex: 1;
+        min-width: 0;
+      }
+
+      /* Mobile Layout: Member (Top) -> Board (Middle) -> Ledger (Bottom) */
+      @media (max-width: 860px) {
+        .main-container {
+          margin: 6px auto;
+          padding: 0 8px;
+        }
+        .content-grid {
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+        }
+        .left-panel {
+          display: contents; /* Unwraps container so flex ordering works directly */
+        }
+        .order-member { order: 1 !important; width: 100%; }
+        .order-grid   { order: 2 !important; width: 100%; }
+        .order-ledger { order: 3 !important; width: 100%; }
+      }
+
+      /* Cards */
+      .card {
+        background: #ffffff;
+        border: 1px solid #e2e8f0;
+        border-radius: 8px;
+        padding: 12px;
+        box-shadow: 0 1px 3px rgba(0,0,0,0.04);
+      }
+      .card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 10px;
+        padding-bottom: 6px;
+        border-bottom: 1px solid #f1f5f9;
+      }
+      .card-title {
+        font-size: 0.88rem;
+        font-weight: 700;
+        color: #334155;
+        margin: 0;
+      }
+      .limits-chip {
+        font-size: 0.7rem;
+        background: #f1f5f9;
+        color: #475569;
+        font-weight: 600;
+        padding: 2px 6px;
+        border-radius: 4px;
+        border: 1px solid #e2e8f0;
+      }
+
+      /* Form Controls */
+      .form-group {
+        margin-bottom: 10px;
+      }
+      .form-group:last-child {
+        margin-bottom: 0;
+      }
+      label {
+        display: block;
+        margin-bottom: 4px;
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: #475569;
+      }
+      select, input[type="text"] {
+        width: 100%;
+        padding: 8px 10px;
+        border: 1px solid #cbd5e1;
+        border-radius: 6px;
+        font-family: inherit;
+        font-size: 0.85rem;
+        background: #fff;
+      }
+      select:focus, input[type="text"]:focus {
+        outline: none;
+        border-color: #2563eb;
+      }
+
+      /* Color Picker & Example Box */
+      .color-picker-container {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        padding: 6px 10px;
+      }
+      .color-picker-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+      .color-picker-item label {
+        margin: 0;
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: #475569;
+      }
+      input[type="color"] {
+        width: 28px;
+        height: 28px;
+        aspect-ratio: 1 / 1;
+        padding: 1px;
+        border: 1px solid #cbd5e1;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      input[type="color"]:disabled {
+        cursor: not-allowed;
+        opacity: 0.6;
+      }
+      .color-example-item {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .example-label {
+        font-size: 0.78rem;
+        font-weight: 600;
+        color: #64748b;
+      }
+      .square-example {
+        width: 28px;
+        height: 28px;
+        aspect-ratio: 1 / 1;
+        border-radius: 4px;
+        font-size: 0.8rem;
+        font-weight: 700;
+        cursor: default;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border: none;
+        box-shadow: none;
+        transition: all 0.15s;
+      }
+
+      /* 10x10 Board */
+      .grid-container {
+        position: relative;
+        width: 100%;
+        aspect-ratio: 1 / 1;
+        max-width: 520px;
+        margin: 0 auto;
+        background: #ffffff;
+        border-radius: 6px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(10, 1fr);
+        gap: 2.5px;
+        width: 100%;
+        height: 100%;
+      }
+      .square {
+        border: 1px solid #cbd5e1;
+        border-radius: 3px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        font-size: 0.88rem;
+        font-weight: 600;
+        background: #f8fafc;
+        color: #334155;
+        user-select: none;
+        transition: transform 0.08s, background-color 0.1s;
+      }
+      .square:hover:not(.taken):not(.mine) {
+        background-color: #dbeafe;
+        border-color: #2563eb;
+        transform: scale(1.05);
+        z-index: 2;
+      }
+
+      /* Dark Slate Gray for Other Members' Squares */
+      .square.taken {
+        background-color: #475569 !important;
+        color: #e2e8f0 !important;
+        border-color: #334155 !important;
+        cursor: not-allowed;
+        opacity: 0.95;
+      }
+
+      /* Prior Picks: Full Member Color, Flat Border, NO STAR */
+      .square.mine {
+        cursor: default;
+        position: relative;
+        border: 1px solid rgba(0,0,0,0.2) !important;
+      }
+      .square.mine::after {
+        content: none !important;
+      }
+
+      /* New Selections: Full Member Color + Bold Black Border + Star ★ */
+      .square.selected {
+        font-weight: 700;
+        border: 2.5px solid #000000 !important;
+        box-shadow: none !important;
+        outline: none !important;
+        transform: scale(1.02);
+        z-index: 3;
+        position: relative;
+      }
+      .square.selected::after {
+        content: '★';
+        position: absolute;
+        top: 1px;
+        right: 2px;
+        font-size: 0.65rem;
+        line-height: 1;
+        color: inherit;
+      }
+
+      /* Legend & Tools */
+      .board-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 10px;
+        padding-top: 8px;
+        border-top: 1px solid #f1f5f9;
+        flex-wrap: wrap;
+        gap: 8px;
+      }
+      .legend {
+        display: flex;
+        gap: 12px;
+        font-size: 0.75rem;
+        color: #64748b;
+      }
+      .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+      }
+      .legend-box {
+        width: 11px;
+        height: 11px;
+        border-radius: 2px;
+      }
+      .btn-quick {
+        font-size: 0.75rem;
+        font-weight: 600;
+        padding: 4px 10px;
+        background: #ede9fe;
+        color: #6d28d9;
+        border: 1px solid #ddd6fe;
+        border-radius: 5px;
+        cursor: pointer;
+        font-family: inherit;
+      }
+
+      /* Badges & Selections */
+      .selection-section {
+        margin-bottom: 8px;
+      }
+      .selection-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.78rem;
+        font-weight: 600;
+        margin-bottom: 4px;
+      }
+      .badge-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 3px;
+        min-height: 24px;
+        max-height: 80px;
+        overflow-y: auto;
+      }
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 24px;
+        height: 20px;
+        padding: 0 4px;
+        border-radius: 3px;
+        font-size: 0.72rem;
+        font-weight: 700;
+      }
+      .badge-prior {
+        background: #e2e8f0;
+        color: #334155;
+        border: 1px solid #cbd5e1;
+      }
+      .badge-new {
+        background: #dcfce7;
+        color: #166534;
+        border: 1px solid #bbf7d0;
+      }
+      .btn-clear-link {
+        font-size: 0.7rem;
+        color: #ef4444;
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 0;
+        text-decoration: underline;
+      }
+
+      /* Financial Ledger */
+      .financial-ledger {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 5px;
+        margin-top: 8px;
+        padding-top: 8px;
+        border-top: 1px solid #f1f5f9;
+        text-align: center;
+      }
+      .ledger-card {
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 5px;
+        padding: 4px 2px;
+      }
+      .ledger-label {
+        font-size: 0.62rem;
+        color: #64748b;
+        font-weight: 600;
+        text-transform: uppercase;
+      }
+      .ledger-value {
+        font-size: 0.85rem;
+        font-weight: 700;
+        margin-top: 1px;
+        color: #1e293b;
+      }
+      .ledger-total {
+        background: #f0fdf4;
+        border-color: #bbf7d0;
+      }
+      .ledger-total .ledger-value {
+        color: #16a34a;
+      }
+      .free-badge {
+        background: #f0fdf4;
+        border: 1px solid #bbf7d0;
+        color: #16a34a;
+        padding: 8px;
+        border-radius: 6px;
+        font-size: 0.78rem;
+        font-weight: 700;
+        text-align: center;
+        margin-top: 8px;
+      }
+
+      /* Action Buttons */
+      .action-buttons {
+        display: flex;
+        gap: 8px;
+        margin-top: 10px;
+      }
+      .btn {
+        flex: 1;
+        padding: 10px 10px;
+        border-radius: 6px;
+        font-family: inherit;
+        font-size: 0.85rem;
+        font-weight: 700;
+        cursor: pointer;
+        border: none;
+      }
+      .btn-primary {
+        background-color: #16a34a;
+        color: #ffffff;
+      }
+      .btn-primary:disabled {
+        background-color: #94a3b8;
+        cursor: not-allowed;
+      }
+      .btn-cancel {
+        background-color: #f1f5f9;
+        color: #475569;
+        border: 1px solid #cbd5e1;
+      }
+
+      /* Overlays */
+      .grid-loading-overlay {
+        position: absolute;
+        inset: 0;
+        background: rgba(255, 255, 255, 0.95);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 10;
+        border-radius: 6px;
+      }
+      .spinner {
+        width: 30px;
+        height: 30px;
+        border: 3px solid #cbd5e1;
+        border-top-color: #2563eb;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        margin-bottom: 6px;
+      }
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+      .confirm-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(15, 23, 42, 0.6);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 50;
+        padding: 16px;
+      }
+      .confirm-dialog {
+        background: #fff;
+        border-radius: 10px;
+        padding: 18px;
+        width: 100%;
+        max-width: 340px;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.2);
+      }
+    </style>
+  </head>
+  <body>
+
+    <!-- Header Banner -->
+    <header class="app-header">
+      <div class="app-title">🏈 NFL Football Squares</div>
+      <div class="pool-tag">Online Entry Form v3</div>
+    </header>
+
+    <div class="main-container">
+
+      <!-- Matchup Banner (Standalone Rounded Capsules & Transparent VS) -->
+      <div class="matchup-banner" id="matchupBanner" style="display: none;">
+        <div class="team-side away" id="awaySide">
+          <span class="team-name" id="awayName">AWAY</span>
+          <span class="team-mascot" id="awayMascot">🏈</span>
+        </div>
+        <div class="vs-badge">VS</div>
+        <div class="team-side home" id="homeSide">
+          <span class="team-mascot" id="homeMascot">🏈</span>
+          <span class="team-name" id="homeName">HOME</span>
+        </div>
+      </div>
+
+      <!-- Board Progress -->
+      <div class="progress-container">
+        <div class="progress-labels">
+          <span>Board Status</span>
+          <span id="boardFillText">0 / 100 Claimed</span>
+        </div>
+        <div class="progress-track">
+          <div class="progress-fill" id="progressFill"></div>
+        </div>
+      </div>
+
+      <div class="content-grid">
+
+        <!-- LEFT PANEL: Stacks Member & Ledger on Desktop -->
+        <div class="left-panel">
+          
+          <!-- 1. MEMBER SELECTION -->
+          <div class="card order-member">
+            <div class="card-header">
+              <h2 class="card-title">🎯 Member Selection</h2>
+              <span class="limits-chip" id="limitsChip">Min 1 • Max 100</span>
+            </div>
+
+            <div class="form-group" id="memberSelectGroup">
+              <label for="memberSelect">Select Member:</label>
+              <select id="memberSelect" onchange="onMemberSelectChange()">
+                <option value="">🎯 Select Member</option>
+                <option value="__NEW__">✏️ New Member</option>
+              </select>
+            </div>
+
+            <div class="form-group" id="newMemberGroup" style="display: none;">
+              <label for="newMemberName">Enter Your Full Name:</label>
+              <input type="text" id="newMemberName" placeholder="e.g. Peyton Manning" autocomplete="off" data-lpignore="true" data-1p-ignore>
+            </div>
+
+            <div class="form-group">
+              <div class="color-picker-container">
+                <div class="color-picker-item">
+                  <label for="colorPicker">Square Color:</label>
+                  <input type="color" id="colorPicker" value="#16a34a" oninput="onColorPickerChange(this.value)">
+                </div>
+                <div class="color-example-item">
+                  <span class="example-label">Example:</span>
+                  <div class="square-example" id="colorPreviewBadge">42</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 2. SELECTIONS & LEDGER -->
+          <div class="card order-ledger">
+            <div class="card-header">
+              <h2 class="card-title">📊 Selections & Ledger</h2>
+            </div>
+
+            <!-- Prior Picks -->
+            <div class="selection-section" id="priorSection" style="display: none;">
+              <div class="selection-header">
+                <span style="color: #475569;">Prior Picks (<span id="priorCount">0</span>)</span>
+              </div>
+              <div class="badge-list" id="priorBadges"></div>
+            </div>
+
+            <!-- New Picks -->
+            <div class="selection-section">
+              <div class="selection-header">
+                <span style="color: #16a34a;">New Picks (<span id="newCount">0</span>)</span>
+                <button class="btn-clear-link" id="clearNewBtn" style="display:none;" onclick="clearNewSelections()">Clear</button>
+              </div>
+              <div class="badge-list" id="newBadges">
+                <span style="color:#94a3b8; font-style:italic; font-size:0.78rem;">Click open squares on the board</span>
+              </div>
+            </div>
+
+            <!-- Financial Breakdown -->
+            <div class="financial-ledger" id="financialLedger" style="display: none;">
+              <div class="ledger-card">
+                <div class="ledger-label">Prior Cost</div>
+                <div class="ledger-value" id="priorCostVal">$0.00</div>
+              </div>
+              <div class="ledger-card">
+                <div class="ledger-label">New Cost</div>
+                <div class="ledger-value" id="newCostVal">$0.00</div>
+              </div>
+              <div class="ledger-card ledger-total">
+                <div class="ledger-label">Total Balance</div>
+                <div class="ledger-value" id="totalCostVal">$0.00</div>
+              </div>
+            </div>
+
+            <!-- NEW: Payment Methods Section -->
+            <div class="payment-methods-section" id="paymentMethodsSection" style="display: none; margin-top: 1.5rem;">
+              <div class="selection-header">
+                <span style="color: #475569; font-weight: 600;">How to Pay</span>
+              </div>
+              <!-- Overriding the layout to wrap/stack so long emails or instructions don't break the layout -->
+              <div class="financial-ledger" id="paymentLedger" style="display:flex; flex-direction:column; gap:5px; margin-top:0.5rem;">
+                <!-- JS Will Inject Payment Cards Here -->
+              </div>
+            </div>
+
+            <!-- Free Entry Mode -->
+            <div class="free-badge" id="freeBadge" style="display: none;">
+              🎉 Free Entry Pool — No Buy-In Required
+            </div>
+
+            <!-- Actions -->
+            <div class="action-buttons">
+              <button class="btn btn-cancel" onclick="onCancelClick()">Reset</button>
+              <button class="btn btn-primary" id="submitBtn" onclick="onReviewClick()">Review Picks</button>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- RIGHT PANEL / MIDDLE ON MOBILE: THE 10x10 BOARD -->
+        <div class="card order-grid">
+          <div class="card-header">
+            <h2 class="card-title">🏈 Squares Grid</h2>
+            <button class="btn-quick" onclick="quickPickRandom()">🎲 Lucky Pick</button>
+          </div>
+
+          <div class="grid-container">
+            <div class="grid-loading-overlay" id="gridLoading">
+              <div class="spinner"></div>
+              <div style="font-weight: 600; color: #475569; font-size: 0.82rem;">Loading Live Board...</div>
+            </div>
+            <div class="grid" id="squaresGrid"></div>
+          </div>
+
+          <div class="board-footer">
+            <div class="legend">
+              <div class="legend-item"><div class="legend-box" style="background:#fff; border:1px solid #cbd5e1;"></div> Open</div>
+              <div class="legend-item"><div class="legend-box" style="background:#475569;"></div> Taken</div>
+              <div class="legend-item"><div class="legend-box" id="legendPriorBox" style="background:#16a34a; border:1px solid rgba(0,0,0,0.2);"></div> Prior</div>
+              <div class="legend-item"><div class="legend-box" id="legendNewBox" style="background:#16a34a; border:2px solid #000; position:relative; font-size:0.6rem; color:#fff; display:flex; align-items:center; justify-content:center;"></div> New ★</div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- Confirmation Modal Overlay -->
+    <div class="confirm-overlay" id="confirmOverlay" style="display: none;">
+      <div class="confirm-dialog">
+        <h3 style="margin:0 0 10px 0; color:#15803d; font-size: 1.05rem;">Confirm Your Selections</h3>
+        <div style="font-size:0.82rem; margin-bottom:5px;"><strong>Member:</strong> <span id="confirmName"></span></div>
+        <div style="font-size:0.82rem; margin-bottom:5px;"><strong>Prior Picks:</strong> <span id="confirmPriorPicks">None</span></div>
+        <div style="font-size:0.82rem; margin-bottom:5px;"><strong>New Picks:</strong> <span id="confirmNewPicks"></span></div>
+        <div style="font-size:0.82rem; margin-bottom:5px;"><strong>Total Picks:</strong> <span id="confirmTotalCount"></span></div>
+        <div id="confirmCostDetail" style="margin: 8px 0; font-weight:700; color:#16a34a; font-size:0.85rem;"></div>
+
+        <div style="display:flex; gap:8px; margin-top:12px;">
+          <button class="btn btn-cancel" onclick="hideConfirm()">Back</button>
+          <button class="btn btn-primary" id="finalConfirmBtn" onclick="submitFinalPicks()">Confirm & Save</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Success Modal Overlay (In-Page Reset without white screen) -->
+    <div class="confirm-overlay" id="successOverlay" style="display: none;">
+      <div class="confirm-dialog" style="text-align: center;">
+        <h2 style="color:#16a34a; margin: 0 0 8px 0; font-size: 1.2rem;">🎉 Success!</h2>
+        <p style="font-size:0.85rem; margin-bottom:14px; color:#475569;" id="successMsg"></p>
+        <button class="btn btn-primary" onclick="resetBoardStateForNewPick()">Done / Refresh Board</button>
+      </div>
+    </div>
+    <script>
+      const pollMs = 15000;
+      let pollTimer = null;
+      let syncInFlight = false;
+      let isSubmitting = false;
+      let lastSyncSig = '';
+
+      let serverData = {
+          members: {},
+          takenSquares: {},
+          config: {},
+          newColor: '#16a34a',
+          matchup: null
+      };
+      let selectedSquares = new Set();
+      let currentMemberPriorSquares = new Set();
+
+      document.addEventListener('DOMContentLoaded', () => {
+          buildStaticGrid();
+          loadAllData();
+          startPolling();
+      });
+
+      function isValidSync(d) {
+          return d && typeof d === 'object' &&
+              d.takenSquares && typeof d.takenSquares === 'object' && !Array.isArray(d.takenSquares) &&
+              d.members && typeof d.members === 'object' && d.config && typeof d.config === 'object';
+      }
+
+      function cfg() {
+          return serverData.config || {};
+      }
+
+      function isSimpleMode() {
+          const v = cfg().disableAdditionalResponses;
+          return v === true || v === 'true';
+      }
+
+      function getLimits() {
+          const c = cfg();
+          return {
+              min: Math.max(1, Number(c.minSquares) || 1),
+              max: Math.min(100, Number(c.maxSquares) || 100)
+          };
+      }
+
+      function getCost() {
+          return Number(cfg().cost) || 0;
+      }
+
+      function buildStaticGrid() {
+          const grid = document.getElementById('squaresGrid');
+          grid.innerHTML = '';
+          for (let i = 1; i <= 100; i++) {
+              const sq = document.createElement('div');
+              sq.className = 'square';
+              sq.id = 'sq-' + i;
+              sq.dataset.number = i;
+              sq.textContent = i;
+              sq.onclick = () => toggleSquare(i);
+              grid.appendChild(sq);
+          }
+      }
+
+      function loadAllData(reset) {
+          google.script.run
+              .withSuccessHandler(data => {
+                  try {
+                      if (!isValidSync(data)) {
+                          throw new Error('Server returned an unexpected payload. Check that the latest version is deployed.');
+                      }
+                      serverData = data;
+                      lastSyncSig = JSON.stringify([data.takenSquares, data.members, data.config, data.matchup]);
+
+                      // A fresh load starts from a clean form state
+                      const colorPicker = document.getElementById('colorPicker');
+                      colorPicker.disabled = false;
+                      colorPicker.value = serverData.newColor || '#16a34a';
+                      document.getElementById('newMemberGroup').style.display = 'none';
+
+                      renderMatchupBanner();
+                      renderPaymentMethods();
+                      populateMembersDropdown();
+                      applyFormMode();
+                      updateRulesChip();
+                      applyBoardState(reset);
+                      updateSummary();
+                      onColorPickerChange(colorPicker.value);
+                  } catch (e) {
+                      console.error('loadAllData failed:', e, data);
+                      alert('Board failed to load: ' + e.message);
+                  } finally {
+                      document.getElementById('gridLoading').style.display = 'none';
+                  }
+              })
+              .withFailureHandler(err => {
+                  document.getElementById('gridLoading').style.display = 'none';
+                  alert('Failed to load board data: ' + err.message);
+              })
+              .getInitialPickerData();
+      }
+
+      function resetBoardStateForNewPick() {
+          selectedSquares = new Set();
+          currentMemberPriorSquares = new Set();
+
+          document.getElementById('newMemberName').value = '';
+          document.getElementById('successOverlay').style.display = 'none';
+          selectedSquares.clear();
+
+          const btn = document.getElementById('finalConfirmBtn');
+          btn.disabled = false;
+          btn.innerText = 'Confirm & Save';
+
+          document.getElementById('gridLoading').style.display = 'flex';
+          loadAllData(true);
+      }
+
+      function updateRulesChip() {
+          const {
+              min,
+              max
+          } = getLimits();
+          document.getElementById('limitsChip').textContent = `Min ${min} • Max ${max}`;
+      }
+
+      function renderMatchupBanner() {
+          const m = serverData.matchup;
+          if (!m || !m.away || !m.home) return;
+
+          const banner = document.getElementById('matchupBanner');
+          const awaySide = document.getElementById('awaySide');
+          const homeSide = document.getElementById('homeSide');
+
+          document.getElementById('awayName').textContent = m.away;
+          document.getElementById('homeName').textContent = m.home;
+          if (m.awayData) {
+              awaySide.style.backgroundColor = m.awayData.colors[0];
+              awaySide.style.color = getContrastingTextColor(m.awayData.colors[0]);
+              document.getElementById('awayMascot').textContent = m.awayData.mascot || '🏈';
+          }
+          if (m.homeData) {
+              homeSide.style.backgroundColor = m.homeData.colors[0];
+              homeSide.style.color = getContrastingTextColor(m.homeData.colors[0]);
+              document.getElementById('homeMascot').textContent = m.homeData.mascot || '🏈';
+          }
+
+          banner.style.display = 'flex';
+      }
+
+      function updateBoardProgress() {
+          const takenCount = Object.keys(serverData.takenSquares).length;
+          const totalClaimed = takenCount + selectedSquares.size;
+          const pct = Math.min(100, Math.round((totalClaimed / 100) * 100));
+
+          document.getElementById('boardFillText').textContent = `${totalClaimed} / 100 Claimed`;
+          document.getElementById('progressFill').style.width = pct + '%';
+      }
+
+      function applyFormMode() {
+          const simple = isSimpleMode();
+          const select = document.getElementById('memberSelect');
+          const selectGroup = document.getElementById('memberSelectGroup');
+          const newGroup = document.getElementById('newMemberGroup');
+          const title = document.querySelector('.order-member .card-title');
+
+          selectGroup.style.display = simple ? 'none' : '';
+          if (title) title.textContent = simple ? '👤 Your Entry' : '👤 Member Selection';
+
+          if (simple) {
+              if (select.value !== '__NEW__') {
+                  select.value = '__NEW__';
+                  onMemberSelectChange();
+              }
+              newGroup.style.display = 'block';
+          }
+      }
+
+      function populateMembersDropdown() {
+          const select = document.getElementById('memberSelect');
+          select.innerHTML = '<option value="">🎯 Select Member</option><option value="__NEW__">✏️ New Member</option>';
+
+          const names = Object.keys(serverData.members).sort((a, b) => a.localeCompare(b));
+          if (!isSimpleMode()) {
+              names.forEach(name => {
+                  const opt = document.createElement('option');
+                  opt.value = name;
+                  opt.textContent = name;
+                  select.appendChild(opt);
+              });
+          }
+      }
+
+      function startPolling() {
+          stopPolling();
+          pollTimer = setInterval(syncFromServer, pollMs);
+      }
+
+      function stopPolling() {
+          if (pollTimer) clearInterval(pollTimer);
+          pollTimer = null;
+      }
+
+      // Pause when tab is hidden, sync immediately when it returns
+      document.addEventListener('visibilitychange', () => {
+          if (document.hidden) {
+              stopPolling();
+          } else {
+              syncFromServer();
+              startPolling();
+          }
+      });
+
+      function syncFromServer() {
+          if (syncInFlight || isSubmitting) return;
+          syncInFlight = true;
+          google.script.run
+              .withSuccessHandler(data => {
+                  syncInFlight = false;
+                  mergeServerData(data);
+              })
+              .withFailureHandler(err => {
+                  syncInFlight = false;
+                  console.warn('Sync failed:', err && err.message);
+              })
+              .getSyncData();
+      }
+
+      function mergeServerData(data) {
+          if (!isValidSync(data)) {
+              console.warn('Bad sync payload', data);
+              return;
+          }
+
+          if (isSubmitting) return;
+
+          // Skip all DOM work if nothing changed
+          const sig = JSON.stringify([data.takenSquares, data.members, data.config, data.matchup]);
+          if (sig === lastSyncSig) return;
+          lastSyncSig = sig;
+
+          data.newColor = serverData.newColor;
+          serverData = data;
+
+          // Rebuild dropdown but keep the user's current choice
+          const select = document.getElementById('memberSelect');
+          const current = select.value;
+          populateMembersDropdown();
+          applyFormMode();
+          const stillValid = current === '__NEW__' ||
+              (current && data.members[current]);
+          select.value = stillValid ? current : '';
+
+          // Re-sync prior squares / color for the selected existing member
+          const colorPicker = document.getElementById('colorPicker');
+          if (current && current !== '__NEW__' && data.members[current]) {
+              currentMemberPriorSquares = new Set(data.members[current].squares);
+              colorPicker.value = data.members[current].color || '#16a34a';
+          } else if (!stillValid) {
+              currentMemberPriorSquares.clear();
+              document.getElementById('newMemberGroup').style.display = 'none';
+              colorPicker.disabled = false;
+              colorPicker.value = data.newColor || '#16a34a';
+          }
+
+          // Drop any pending picks that someone else just claimed
+          const lost = [];
+          selectedSquares.forEach(n => {
+              if (data.takenSquares[n] || currentMemberPriorSquares.has(n)) lost.push(n);
+          });
+          lost.forEach(n => selectedSquares.delete(n));
+
+          renderMatchupBanner();
+          updateRulesChip();
+          onColorPickerChange(colorPicker.value); // also calls applyBoardState()
+          updateSummary();
+
+          if (lost.length) {
+              hideConfirm(); // review modal is now out of date
+              showToast(`Square${lost.length > 1 ? 's' : ''} ${lost.sort((a,b)=>a-b).join(', ')} just got claimed by someone else and ${lost.length > 1 ? 'were' : 'was'} removed from your picks.`);
+          }
+      }
+
+      function showToast(msg) {
+          let t = document.getElementById('toast');
+          if (!t) {
+              t = document.createElement('div');
+              t.id = 'toast';
+              t.style.cssText = 'position:fixed;bottom:16px;left:50%;transform:translateX(-50%);' +
+                  'background:#1e293b;color:#fff;padding:10px 14px;border-radius:8px;font-size:0.82rem;' +
+                  'z-index:100;max-width:90%;box-shadow:0 4px 12px rgba(0,0,0,0.25);';
+              document.body.appendChild(t);
+          }
+          t.textContent = msg;
+          t.style.display = 'block';
+          clearTimeout(t._h);
+          t._h = setTimeout(() => (t.style.display = 'none'), 5000);
+      }
+
+      function getContrastingTextColor(hex) {
+          hex = hex.replace(/^#/, '');
+          const r = parseInt(hex.substring(0, 2), 16);
+          const g = parseInt(hex.substring(2, 4), 16);
+          const b = parseInt(hex.substring(4, 6), 16);
+          const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
+          return (yiq >= 128) ? '#000000' : '#ffffff';
+      }
+
+      function onColorPickerChange(hexColor) {
+          const badge = document.getElementById('colorPreviewBadge');
+          if (badge) {
+              badge.style.backgroundColor = hexColor;
+              badge.style.color = getContrastingTextColor(hexColor);
+          }
+          applyBoardState();
+      }
+
+      function onMemberSelectChange() {
+          const val = document.getElementById('memberSelect').value;
+          const newGroup = document.getElementById('newMemberGroup');
+          const colorPicker = document.getElementById('colorPicker');
+
+          if (val === '__NEW__') {
+              newGroup.style.display = 'block';
+              colorPicker.disabled = false;
+              colorPicker.value = serverData.newColor;
+              currentMemberPriorSquares.clear();
+          } else if (val) {
+              newGroup.style.display = 'none';
+              const memberInfo = serverData.members[val];
+              if (memberInfo) {
+                  colorPicker.value = memberInfo.color || '#16a34a';
+                  colorPicker.disabled = true;
+                  currentMemberPriorSquares = new Set(memberInfo.squares);
+              }
+          } else {
+              newGroup.style.display = 'none';
+              colorPicker.disabled = false;
+              colorPicker.value = serverData.newColor;
+              currentMemberPriorSquares.clear();
+          }
+
+          onColorPickerChange(colorPicker.value);
+
+          currentMemberPriorSquares.forEach(sq => {
+              if (selectedSquares.has(sq)) {
+                  selectedSquares.delete(sq);
+              }
+          });
+
+          // Strict MAX check
+          const {
+              max
+          } = getLimits();
+          if (currentMemberPriorSquares.size + selectedSquares.size > max) {
+              while (currentMemberPriorSquares.size + selectedSquares.size > max) {
+                  const lastPick = Array.from(selectedSquares).pop();
+                  selectedSquares.delete(lastPick);
+              }
+              alert(`Note: Total picks for ${val} cannot exceed the maximum of ${max}. Extra picks were trimmed.`);
+          }
+
+          applyBoardState();
+          updateSummary();
+      }
+
+      // Prior and New share the EXACT same full-saturation member color!
+      function applyBoardState(reset) {
+          const activeColor = reset ? '#16a34a' : (document.getElementById('colorPicker').value || '#16a34a');
+          const activeText = getContrastingTextColor(activeColor);
+
+          const legPrior = document.getElementById('legendPriorBox');
+          const legNew = document.getElementById('legendNewBox');
+          if (legPrior) legPrior.style.backgroundColor = activeColor;
+          if (legNew) legNew.style.backgroundColor = activeColor;
+
+          for (let i = 1; i <= 100; i++) {
+              const sq = document.getElementById('sq-' + i);
+              sq.className = 'square';
+              sq.style.backgroundColor = '';
+              sq.style.color = '';
+
+              if (currentMemberPriorSquares.has(i) && !reset) {
+                  sq.classList.add('mine');
+                  sq.style.backgroundColor = activeColor; // Same full saturation!
+                  sq.style.color = activeText;
+              } else if (serverData.takenSquares[i]) {
+                  sq.classList.add('taken');
+              } else if (selectedSquares.has(i)) {
+                  sq.classList.add('selected');
+                  sq.style.backgroundColor = activeColor; // Same full saturation!
+                  sq.style.color = activeText;
+              }
+          }
+      }
+
+      function toggleSquare(num) {
+          if (currentMemberPriorSquares.has(num)) {
+              alert(`Square #${num} is already one of your prior selections!`);
+              return;
+          }
+          if (serverData.takenSquares[num]) {
+              alert(`Square #${num} has already been claimed by someone else.`);
+              return;
+          }
+
+          const {
+              max
+          } = getLimits();
+          if (selectedSquares.has(num)) {
+              selectedSquares.delete(num);
+          } else {
+              const totalAfter = currentMemberPriorSquares.size + selectedSquares.size + 1;
+              if (totalAfter > max) {
+                  alert(`Maximum allowed squares per person is ${max}.`);
+                  return;
+              }
+              selectedSquares.add(num);
+          }
+
+          applyBoardState();
+          updateSummary();
+      }
+
+      function quickPickRandom() {
+          const {
+              max
+          } = getLimits();
+          if (currentMemberPriorSquares.size + selectedSquares.size >= max) {
+              alert(`You have already reached the maximum limit of ${max} squares.`);
+              return;
+          }
+
+          const candidates = [];
+          for (let i = 1; i <= 100; i++) {
+              if (!serverData.takenSquares[i] && !currentMemberPriorSquares.has(i) && !selectedSquares.has(i)) {
+                  candidates.push(i);
+              }
+          }
+
+          if (candidates.length === 0) {
+              alert('No remaining open squares available on the board!');
+              return;
+          }
+
+          const luckyNumber = candidates[Math.floor(Math.random() * candidates.length)];
+          selectedSquares.add(luckyNumber);
+          applyBoardState();
+          updateSummary();
+      }
+
+      function clearNewSelections() {
+          selectedSquares.clear();
+          applyBoardState();
+          updateSummary();
+      }
+
+      function updateSummary() {
+          const priorCount = currentMemberPriorSquares.size;
+          const newCount = selectedSquares.size;
+          const totalCount = priorCount + newCount;
+          const costPerSquare = getCost();
+
+          updateBoardProgress();
+
+          // Prior Badges
+          const priorSection = document.getElementById('priorSection');
+          if (priorCount > 0) {
+              priorSection.style.display = 'block';
+              document.getElementById('priorCount').textContent = priorCount;
+              document.getElementById('priorBadges').innerHTML = Array.from(currentMemberPriorSquares)
+                  .sort((a, b) => a - b)
+                  .map(n => `<span class="badge badge-prior">${n}</span>`)
+                  .join('');
+          } else {
+              priorSection.style.display = 'none';
+          }
+
+          // New Badges
+          document.getElementById('newCount').textContent = newCount;
+          const clearBtn = document.getElementById('clearNewBtn');
+          const newBadges = document.getElementById('newBadges');
+
+          if (newCount > 0) {
+              clearBtn.style.display = 'inline';
+              newBadges.innerHTML = Array.from(selectedSquares)
+                  .sort((a, b) => a - b)
+                  .map(n => `<span class="badge badge-new">${n}</span>`)
+                  .join('');
+              document.getElementById('submitBtn').textContent = `Review (${newCount}) Picks`;
+          } else {
+              clearBtn.style.display = 'none';
+              newBadges.innerHTML = '<span style="color:#94a3b8; font-style:italic; font-size:0.78rem;">Click open squares on the board</span>';
+              document.getElementById('submitBtn').textContent = 'Review Picks';
+          }
+
+          // Financial Ledger vs Free Mode
+          const ledger = document.getElementById('financialLedger');
+          const freeBadge = document.getElementById('freeBadge');
+
+          if (costPerSquare > 0) {
+              ledger.style.display = 'grid';
+              freeBadge.style.display = 'none';
+
+              document.getElementById('priorCostVal').textContent = `$${(priorCount * costPerSquare).toFixed(2)}`;
+              document.getElementById('newCostVal').textContent = `$${(newCount * costPerSquare).toFixed(2)}`;
+              document.getElementById('totalCostVal').textContent = `$${(totalCount * costPerSquare).toFixed(2)}`;
+          } else {
+              ledger.style.display = 'none';
+              freeBadge.style.display = 'block';
+          }
+      }
+
+      function getPaymentLink(key, val) {
+        var HTTPS = 'https:\x2F\x2F';
+        var str = String(val || '').trim();
+        if (!str) return null;
+
+        if (key === 'venmo') {
+          return HTTPS + 'venmo.com/u/' + encodeURIComponent(str.replace(/^@/, ''));
+        }
+        if (key === 'cashapp') {
+          return HTTPS + 'cash.app/\x24' + encodeURIComponent(str.replace(/^\x24/, ''));
+        }
+        if (key === 'paypal') {
+          var m = str.match(/paypal\.me\x2F([A-Za-z0-9._-]+)/i);
+          return m ? HTTPS + 'paypal.me/' + m[1] : null;
+        }
+        if (key === 'other') {
+          return /^https?:\x2F\x2F/i.test(str) ? str : null;
+        }
+        return null;   // zelle, and PayPal emails: no link, copied on click instead
+      }
+
+      function copyText(text) {
+        // execCommand first: it works inside Apps Script's sandboxed iframe,
+        // where the newer Clipboard API is often blocked
+        var ok = false;
+        try {
+          var ta = document.createElement('textarea');
+          ta.value = text;
+          ta.setAttribute('readonly', '');
+          ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;font-size:16px;';
+          document.body.appendChild(ta);
+          ta.select();
+          ta.setSelectionRange(0, text.length);
+          ok = document.execCommand('copy');
+          document.body.removeChild(ta);
+        } catch (e) {
+          ok = false;
+        }
+        if (ok) return Promise.resolve();
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          return navigator.clipboard.writeText(text);
+        }
+        return Promise.reject(new Error('copy not supported'));
+      }
+
+      function makeCopyable(el, text) {
+        el.style.cursor = 'pointer';
+        el.style.borderBottom = '1px dotted #94a3b8';
+        el.title = 'Click to copy';
+        el.setAttribute('role', 'button');
+        el.tabIndex = 0;
+
+        var busy = false;
+
+        function flash(msg, color) {
+          busy = true;
+          var oldText = el.textContent;
+          var oldColor = el.style.color;
+          el.textContent = msg;
+          el.style.color = color;
+          setTimeout(function () {
+            el.textContent = oldText;
+            el.style.color = oldColor;
+            busy = false;
+          }, 1500);
+        }
+
+        function doCopy() {
+          if (busy) return;
+          copyText(text)
+            .then(function () { flash('✓ Copied', '#16a34a'); })
+            .catch(function () { flash('Copy failed', '#dc2626'); });
+        }
+
+        el.addEventListener('click', doCopy);
+        el.addEventListener('keydown', function (e) {
+          if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); doCopy(); }
+        });
+      }
+      // Function to build and display the payment block
+      function renderPaymentMethods() {
+          const container = document.getElementById('paymentMethodsSection');
+          const ledger = document.getElementById('paymentLedger');
+
+          let methodsData = (serverData && serverData.config) ? serverData.config.paymentMethods : null;
+
+          // Gracefully hide if no data exists
+          if (!methodsData) {
+              container.style.display = 'none';
+              return;
+          }
+
+          let activeMethods = [];
+
+          // CASE A: Server passes an Array of objects
+          if (Array.isArray(methodsData)) {
+              activeMethods = methodsData.filter(m => {
+                  // Check common property names where you might have stored the handle
+                  const val = m.value || m.account || m.handle;
+                  return val && String(val).trim() !== '';
+              }).map(m => ({
+                  key: m.key,
+                  label: m.label,
+                  value: String(m.value || m.account || m.handle).trim(),
+                  multiline: m.multiline
+              }));
+          }
+          // CASE B: Server passes a dictionary Object (e.g. { venmo: "@myvenmo" })
+          else if (typeof methodsData === 'object') {
+              const labelMap = {
+                  paypal: 'PayPal',
+                  venmo: 'Venmo',
+                  cashapp: 'Cash App',
+                  zelle: 'Zelle',
+                  other: 'Other'
+              };
+              for (const [key, val] of Object.entries(methodsData)) {
+                  if (val && String(val).trim() !== '') {
+                      activeMethods.push({
+                          key: key,
+                          label: labelMap[key] || key,
+                          value: String(val).trim(),
+                          multiline: key === 'other'
+                      });
+                  }
+              }
+          }
+
+          // Hide the whole section if no valid handles were found
+          if (activeMethods.length === 0) {
+              container.style.display = 'none';
+              return;
+          }
+
+          container.style.display = 'block';
+          ledger.innerHTML = ''; // Clear existing
+
+          activeMethods.forEach(method => {
+              const card = document.createElement('div');
+              card.className = 'ledger-card';
+              card.style.flex = '1 1 100%'; // Stack vertically
+
+              const labelDiv = document.createElement('div');
+              labelDiv.className = 'ledger-label';
+              labelDiv.textContent = method.label;
+
+              const valueDiv = document.createElement('div');
+              valueDiv.className = 'ledger-value';
+              valueDiv.style.wordBreak = 'break-word';
+              valueDiv.style.textAlign = 'center';
+
+              const linkUrl = getPaymentLink(method.key, method.value);
+
+              if (linkUrl) {
+                  const a = document.createElement('a');
+                  a.href = linkUrl;
+                  a.target = '_blank';
+                  a.rel = 'noopener noreferrer';
+                  a.textContent = method.value;
+                  a.style.color = '#2563eb';
+                  a.style.textDecoration = 'none';
+                  a.style.fontWeight = '500';
+
+                  a.onmouseover = () => a.style.textDecoration = 'underline';
+                  a.onmouseout = () => a.style.textDecoration = 'none';
+                  valueDiv.appendChild(a);
+              } else {
+                  if (method.key === 'paypal' || method.key === 'zelle') {
+                      var span = document.createElement('span');
+                      span.textContent = method.value;
+                      makeCopyable(span, method.value);
+                      valueDiv.appendChild(span);
+                  } else {
+                      valueDiv.textContent = method.value;
+                      if (method.multiline) {
+                          valueDiv.style.whiteSpace = 'pre-wrap';
+                      }
+                  }
+              }
+
+              card.appendChild(labelDiv);
+              card.appendChild(valueDiv);
+              ledger.appendChild(card);
+          });
+      }
+
+      function paymentValue(key, v) {
+          if (v === null || v === undefined) return '';
+          if (typeof v === 'object') {
+              if (v.enabled === false) return '';
+              v = (key === 'other') ? v.paymentDetails : v.paymentHandle;
+          }
+          return String(v || '').trim();
+      }
+
+      function getEffectiveName() {
+          const val = document.getElementById('memberSelect').value;
+          if (val === '__NEW__') {
+              return document.getElementById('newMemberName').value.trim();
+          }
+          return val.trim();
+      }
+
+      function onReviewClick() {
+          const name = getEffectiveName();
+          if (!name) {
+              alert('Please enter or select your name.');
+              return;
+          }
+
+          const {
+              min,
+              max
+          } = getLimits();
+          const totalPicks = currentMemberPriorSquares.size + selectedSquares.size;
+
+          if (selectedSquares.size === 0) {
+              alert('Please pick at least one new square.');
+              return;
+          }
+          if (totalPicks < min) {
+              alert(`You must select at least ${min} square(s) in total (currently at ${totalPicks}).`);
+              return;
+          }
+          if (totalPicks > max) {
+              alert(`Total squares cannot exceed the maximum allowed limit of ${max}.`);
+              return;
+          }
+
+          const sortedNew = Array.from(selectedSquares).sort((a, b) => a - b);
+          const sortedPrior = Array.from(currentMemberPriorSquares).sort((a, b) => a - b);
+
+          document.getElementById('confirmName').textContent = name;
+          document.getElementById('confirmPriorPicks').textContent = sortedPrior.length ? sortedPrior.join(', ') : 'None';
+          document.getElementById('confirmNewPicks').textContent = sortedNew.join(', ');
+          document.getElementById('confirmTotalCount').textContent = `${sortedPrior.length + sortedNew.length} squares`;
+
+          const costPerSquare = getCost();
+          const costDetail = document.getElementById('confirmCostDetail');
+          if (costPerSquare > 0) {
+              costDetail.innerHTML = `New Amount Due: $${(costPerSquare * sortedNew.length).toFixed(2)}<br><span style="font-size:0.75rem; color:#64748b;">(Total Pool Balance: $${(costPerSquare * (sortedPrior.length + sortedNew.length)).toFixed(2)})</span>`;
+          } else {
+              costDetail.textContent = '🎉 Free Entry Pool — No Cost';
+          }
+
+          document.getElementById('confirmOverlay').style.display = 'flex';
+      }
+
+      function hideConfirm() {
+          document.getElementById('confirmOverlay').style.display = 'none';
+      }
+
+      function onCancelClick() {
+          if (selectedSquares.size > 0 && !confirm('Discard current selections?')) {
+              return;
+          }
+          selectedSquares.clear();
+          applyBoardState();
+          updateSummary();
+      }
+
+      function submitFinalPicks() {
+          const name = getEffectiveName();
+          const numbers = Array.from(selectedSquares);
+          const color = document.getElementById('colorPicker').value;
+          const btn = document.getElementById('finalConfirmBtn');
+
+          btn.disabled = true;
+          btn.innerText = 'Submitting...';
+          isSubmitting = true;
+
+          google.script.run
+              .withSuccessHandler(res => {
+                  isSubmitting = false;
+                  btn.disabled = false;
+                  btn.innerText = 'Confirm & Save';
+                  hideConfirm();
+
+                  if (res.success) {
+                      document.getElementById('successMsg').textContent = res.message;
+                      document.getElementById('successOverlay').style.display = 'flex';
+                  } else {
+                      alert(res.message);
+                      lastSyncSig = ''; // force the next merge to re-render
+                      syncFromServer(); // refresh without wiping the user's member choice
+                  }
+              })
+              .withFailureHandler(err => {
+                  isSubmitting = false;
+                  btn.disabled = false;
+                  btn.innerText = 'Confirm & Save';
+                  alert('Submission error: ' + err.message);
+              })
+              .submitSquarePicks(name, numbers, color);
+      }
+    </script>
+  </body>
+</html>
