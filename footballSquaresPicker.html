@@ -1,0 +1,994 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <link href="https://fonts.googleapis.com/css2?family=Lexend:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      body {
+        font-family: 'Lexend', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        margin: 0;
+        padding: 8px 6px 16px 6px;
+        background-color: #f4f6f8;
+        color: #263238;
+        overflow-x: hidden;
+      }
+
+      /* Compact Cards */
+      .card {
+        background: #ffffff;
+        border: 1px solid #e0e6ed;
+        border-radius: 6px;
+        padding: 8px 8px;
+        margin-bottom: 6px;
+        box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+      }
+      .card-title {
+        font-size: 0.8rem;
+        font-weight: 700;
+        color: #37474f;
+        margin-bottom: 6px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      /* Board Progress Bar */
+      .progress-container {
+        margin-bottom: 6px;
+        padding: 0 2px;
+      }
+      .progress-labels {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.72rem;
+        font-weight: 600;
+        color: #546e7a;
+        margin-bottom: 3px;
+      }
+      .progress-track {
+        width: 100%;
+        height: 7px;
+        background: #cfd8dc;
+        border-radius: 4px;
+        overflow: hidden;
+      }
+      .progress-fill {
+        height: 100%;
+        width: 0%;
+        background: linear-gradient(90deg, #43a047, #1e88e5);
+        border-radius: 4px;
+        transition: width 0.25s ease;
+      }
+
+      /* Form Controls */
+      .form-group {
+        margin-bottom: 6px;
+      }
+      .form-group:last-child {
+        margin-bottom: 0;
+      }
+      label {
+        display: block;
+        margin-bottom: 3px;
+        font-size: 0.74rem;
+        font-weight: 600;
+        color: #455a64;
+      }
+      select, input[type="text"] {
+        width: 100%;
+        padding: 6px 8px;
+        border: 1px solid #cfd8dc;
+        border-radius: 5px;
+        font-family: inherit;
+        font-size: 0.82rem;
+        background: #fff;
+      }
+      select:focus, input[type="text"]:focus {
+        outline: none;
+        border-color: #1976d2;
+      }
+
+      /* Color Picker & Preview Row */
+      .color-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 6px;
+        background: #f8fafc;
+        padding: 4px 6px;
+        border-radius: 5px;
+        border: 1px solid #e2e8f0;
+      }
+      .color-left {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+      .color-label-inline {
+        font-size: 0.74rem;
+        font-weight: 600;
+        color: #455a64;
+        margin: 0;
+      }
+      input[type="color"] {
+        width: 26px;
+        height: 26px;
+        padding: 0;
+        border: 1px solid #94a3b8;
+        border-radius: 4px;
+        cursor: pointer;
+        background: none;
+      }
+      input[type="color"]::-webkit-color-swatch-wrapper {
+        padding: 0;
+      }
+      input[type="color"]::-webkit-color-swatch {
+        border: none;
+        border-radius: 3px;
+      }
+      input[type="color"]:disabled {
+        cursor: not-allowed;
+        opacity: 0.65;
+      }
+      .example-container {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+      }
+      .example-label {
+        font-size: 0.72rem;
+        font-weight: 600;
+        color: #64748b;
+      }
+      .example-square {
+        width: 24px;
+        height: 24px;
+        border-radius: 3px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.7rem;
+        font-weight: 700;
+        border: none;
+        transition: background-color 0.15s, color 0.15s;
+      }
+
+      /* 10x10 Grid fitted with zero scrollbar overflow */
+      .grid-card {
+        padding: 6px 4px !important;
+      }
+      .grid-container {
+        position: relative;
+        width: 100%;
+        min-height: 255px;
+        border-radius: 4px;
+        overflow: hidden;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(10, 1fr);
+        gap: 1.5px;
+        width: 100%;
+      }
+      .square {
+        aspect-ratio: 1 / 1;
+        border: 1px solid #b0bec5;
+        border-radius: 2px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        font-size: 0.72rem;
+        font-weight: 600;
+        background: #ffffff;
+        color: #37474f;
+        user-select: none;
+        position: relative;
+        transition: transform 0.08s, background-color 0.1s;
+      }
+      .square:hover:not(.taken):not(.mine) {
+        background-color: #e3f2fd;
+        border-color: #1976d2;
+        transform: scale(1.08);
+        z-index: 2;
+      }
+      /* Unavailable squares: Dark Slate Gray */
+      .square.taken {
+        background-color: #475569 !important;
+        color: #e2e8f0 !important;
+        border-color: #334155 !important;
+        cursor: not-allowed;
+        opacity: 0.92;
+      }
+      /* Member's prior picks: Same member color, flat border, NO star */
+      .square.mine {
+        cursor: default;
+        border-color: rgba(0, 0, 0, 0.25) !important;
+        font-weight: 700;
+      }
+      /* Member's newly selected picks: Member color, bold black outline, WITH star */
+      .square.selected {
+        border: 2px solid #000000 !important;
+        font-weight: 700;
+        z-index: 3;
+      }
+      .square.selected::after {
+        content: '★';
+        position: absolute;
+        top: 0px;
+        right: 1px;
+        font-size: 0.52rem;
+        line-height: 1;
+        color: #ffeb3b;
+        text-shadow: 0 0 1px #000000;
+      }
+
+      /* Full-Coverage Loading Overlay & Spinner */
+      .grid-loading-overlay {
+        position: absolute;
+        inset: 0;
+        background: rgba(255, 255, 255, 0.95);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 10;
+      }
+      .spinner {
+        width: 26px;
+        height: 26px;
+        border: 3px solid #cfd8dc;
+        border-top-color: #1976d2;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        margin-bottom: 6px;
+      }
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+      .loading-text {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: #546e7a;
+      }
+
+      /* Legend & Quick Pick Tools */
+      .grid-tools {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-top: 6px;
+        padding-top: 6px;
+        border-top: 1px dashed #cfd8dc;
+      }
+      .legend {
+        display: flex;
+        gap: 6px;
+        font-size: 0.65rem;
+        color: #546e7a;
+        align-items: center;
+      }
+      .legend-item {
+        display: flex;
+        align-items: center;
+        gap: 2.5px;
+      }
+      .legend-box {
+        width: 14px;
+        height: 14px;
+        border-radius: 2px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.55rem;
+        line-height: 1;
+      }
+      .btn-quick {
+        font-size: 0.68rem;
+        font-weight: 600;
+        padding: 3px 7px;
+        background: #e8eaf6;
+        color: #283593;
+        border: 1px solid #c5cae9;
+        border-radius: 4px;
+        cursor: pointer;
+        font-family: inherit;
+      }
+
+      /* Badges & Selections */
+      .selection-section {
+        margin-bottom: 6px;
+      }
+      .selection-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        font-size: 0.75rem;
+        font-weight: 600;
+        margin-bottom: 3px;
+      }
+      .badge-list {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 2.5px;
+        min-height: 22px;
+        max-height: 65px;
+        overflow-y: auto;
+      }
+      .badge {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 23px;
+        height: 20px;
+        padding: 0 4px;
+        border-radius: 3px;
+        font-size: 0.72rem;
+        font-weight: 700;
+      }
+      .badge-prior {
+        background: #e3f2fd;
+        color: #1565c0;
+        border: 1px solid #90caf9;
+      }
+      .badge-new {
+        background: #e8f5e9;
+        color: #2e7d32;
+        border: 1.5px solid #000000;
+      }
+      .btn-clear-link {
+        font-size: 0.68rem;
+        color: #d32f2f;
+        background: none;
+        border: none;
+        cursor: pointer;
+        padding: 0;
+        text-decoration: underline;
+      }
+
+      /* Financial Summary */
+      .financial-ledger {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 5px;
+        margin-top: 6px;
+        padding-top: 6px;
+        border-top: 1px solid #e0e6ed;
+        text-align: center;
+      }
+      .ledger-card {
+        background: #fafafa;
+        border: 1px solid #eceff1;
+        border-radius: 5px;
+        padding: 4px 2px;
+      }
+      .ledger-label {
+        font-size: 0.62rem;
+        color: #78909c;
+        font-weight: 600;
+        text-transform: uppercase;
+      }
+      .ledger-value {
+        font-size: 0.8rem;
+        font-weight: 700;
+        margin-top: 1px;
+        color: #37474f;
+      }
+      .ledger-total {
+        background: #e8f5e9;
+        border-color: #c8e6c9;
+      }
+      .ledger-total .ledger-value {
+        color: #2e7d32;
+      }
+      .free-badge {
+        background: #e8f5e9;
+        border: 1px solid #a5d6a7;
+        color: #2e7d32;
+        padding: 5px;
+        border-radius: 5px;
+        font-size: 0.72rem;
+        font-weight: 700;
+        text-align: center;
+        margin-top: 6px;
+      }
+
+      /* Actions */
+      .action-buttons {
+        display: flex;
+        gap: 6px;
+        margin-top: 8px;
+      }
+      .btn {
+        flex: 1;
+        padding: 8px 6px;
+        border-radius: 5px;
+        font-family: inherit;
+        font-size: 0.82rem;
+        font-weight: 700;
+        cursor: pointer;
+        border: none;
+      }
+      .btn-primary {
+        background-color: #2e7d32;
+        color: #ffffff;
+      }
+      .btn-primary:disabled {
+        background-color: #b0bec5;
+        cursor: not-allowed;
+      }
+      .btn-cancel {
+        background-color: #eceff1;
+        color: #455a64;
+        border: 1px solid #cfd8dc;
+      }
+
+      /* Modals */
+      .confirm-overlay {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.55);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        z-index: 50;
+        padding: 10px;
+      }
+      .confirm-dialog {
+        background: #fff;
+        border-radius: 8px;
+        padding: 14px;
+        width: 100%;
+        max-width: 280px;
+        box-shadow: 0 4px 16px rgba(0,0,0,0.2);
+      }
+      .confirm-detail {
+        font-size: 0.78rem;
+        margin-bottom: 5px;
+        text-align: left;
+      }
+    </style>
+  </head>
+  <body>
+
+    <!-- 1. Live Board Progress -->
+    <div class="progress-container">
+      <div class="progress-labels">
+        <span>Board Fill</span>
+        <span id="boardFillText">? / 100 Claimed</span>
+      </div>
+      <div class="progress-track">
+        <div class="progress-fill" id="progressFill"></div>
+      </div>
+    </div>
+
+    <!-- 2. Member & Color Card -->
+    <div class="card">
+      <div class="card-title">👤 Member Info</div>
+      
+      <div class="form-group">
+        <label for="memberSelect">Select Member:</label>
+        <select id="memberSelect" onchange="onMemberSelectChange()">
+          <option value="">🎯 Choose Member</option>
+          <option value="__NEW__">✏️ New Member</option>
+        </select>
+      </div>
+
+      <div class="form-group" id="newMemberGroup" style="display: none;">
+        <label for="newMemberName">Your Full Name:</label>
+        <input type="text" id="newMemberName" placeholder="e.g. Peyton Manning">
+      </div>
+
+      <div class="form-group">
+        <div class="color-row">
+          <div class="color-left">
+            <span class="color-label-inline">Square Color:</span>
+            <input type="color" id="colorPicker" value="#2e7d32" onchange="updateColorPreview()">
+          </div>
+          <div class="example-container">
+            <span class="example-label">Example:</span>
+            <div class="example-square" id="colorExampleSquare">42</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. The 10x10 Squares Board Card -->
+    <div class="card grid-card">
+      <div class="card-title" style="padding: 0 3px;">
+        <span>🏈 Pick Squares</span>
+        <button class="btn-quick" onclick="quickPickRandom()">🎲 Lucky Pick</button>
+      </div>
+
+      <div class="grid-container">
+        <div class="grid-loading-overlay" id="gridLoading">
+          <div class="spinner"></div>
+          <div class="loading-text">Loading board...</div>
+        </div>
+        <div class="grid" id="squaresGrid"></div>
+      </div>
+
+      <div class="grid-tools">
+        <div class="legend">
+          <div class="legend-item"><div class="legend-box" style="background:#fff; border:1px solid #b0bec5;"></div> Open</div>
+          <div class="legend-item"><div class="legend-box" style="background:#475569; color:#e2e8f0;"></div> Taken</div>
+          <div class="legend-item"><div class="legend-box" id="legendPriorBox" style="background:#1565c0; color:#fff;"></div> Prior</div>
+          <div class="legend-item"><div class="legend-box" id="legendNewBox" style="background:#2e7d32; border:1.5px solid #000; color:#ffeb3b;">★</div> New</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. Selections & Ledger Card -->
+    <div class="card">
+      <div class="card-title">📊 Selections & Ledger</div>
+
+      <!-- Prior Selections -->
+      <div class="selection-section" id="priorSection" style="display: none;">
+        <div class="selection-header">
+          <span style="color: #1565c0;">Prior Picks (<span id="priorCount">0</span>)</span>
+        </div>
+        <div class="badge-list" id="priorBadges"></div>
+      </div>
+
+      <!-- New Selections -->
+      <div class="selection-section">
+        <div class="selection-header">
+          <span style="color: #2e7d32;">New Picks (<span id="newCount">0</span>)</span>
+          <button class="btn-clear-link" id="clearNewBtn" style="display:none;" onclick="clearNewSelections()">Clear</button>
+        </div>
+        <div class="badge-list" id="newBadges">
+          <span style="color:#90a4ae; font-style:italic; font-size:0.72rem;">Select squares from board</span>
+        </div>
+      </div>
+
+      <!-- Dynamic Financial Ledger -->
+      <div class="financial-ledger" id="financialLedger" style="display: none;">
+        <div class="ledger-card">
+          <div class="ledger-label">Prior Cost</div>
+          <div class="ledger-value" id="priorCostVal">$0.00</div>
+        </div>
+        <div class="ledger-card">
+          <div class="ledger-label">New Cost</div>
+          <div class="ledger-value" id="newCostVal">$0.00</div>
+        </div>
+        <div class="ledger-card ledger-total">
+          <div class="ledger-label">Total</div>
+          <div class="ledger-value" id="totalCostVal">$0.00</div>
+        </div>
+      </div>
+
+      <!-- Free Entry Banner -->
+      <div class="free-badge" id="freeBadge" style="display: none;">
+        🎉 Free Entry Pool — No Buy-In
+      </div>
+    </div>
+
+    <!-- 5. Actions -->
+    <div class="action-buttons">
+      <button class="btn btn-cancel" onclick="onCancelClick()">Cancel</button>
+      <button class="btn btn-primary" id="submitBtn" onclick="onReviewClick()">Review Picks</button>
+    </div>
+
+    <!-- Confirmation Modal Overlay -->
+    <div class="confirm-overlay" id="confirmOverlay" style="display: none;">
+      <div class="confirm-dialog">
+        <h4 style="margin:0 0 8px 0; color:#1b5e20;">Confirm Your Picks</h4>
+        <div class="confirm-detail"><strong>Member:</strong> <span id="confirmName"></span></div>
+        <div class="confirm-detail"><strong>Prior Picks:</strong> <span id="confirmPriorPicks">None</span></div>
+        <div class="confirm-detail"><strong>New Picks:</strong> <span id="confirmNewPicks"></span></div>
+        <div class="confirm-detail"><strong>Total Picks:</strong> <span id="confirmTotalCount"></span></div>
+        <div id="confirmCostDetail" style="margin: 8px 0; font-weight:700; color:#2e7d32; font-size:0.8rem;"></div>
+
+        <div style="display:flex; gap:6px; margin-top:10px;">
+          <button class="btn btn-cancel" onclick="hideConfirm()">Back</button>
+          <button class="btn btn-primary" id="finalConfirmBtn" onclick="submitFinalPicks()">Confirm & Save</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Success Modal Overlay -->
+    <div class="confirm-overlay" id="successOverlay" style="display: none;">
+      <div class="confirm-dialog" style="text-align: center;">
+        <h3 style="color:#2e7d32; margin: 0 0 6px 0;">🎉 Success!</h3>
+        <p style="font-size:0.8rem; margin-bottom:12px;" id="successMsg"></p>
+        <button class="btn btn-primary" onclick="resetBoardAfterSubmit()">Done / Reset Board</button>
+      </div>
+    </div>
+
+    <script>
+      let serverData = { members: {}, takenSquares: {}, settings: [0, 1, 100], newColor: '#2e7d32' };
+      let selectedSquares = new Set();
+      let currentMemberPriorSquares = new Set();
+
+      document.addEventListener('DOMContentLoaded', () => {
+        buildStaticGrid();
+        loadAllData();
+      });
+
+      function buildStaticGrid() {
+        const grid = document.getElementById('squaresGrid');
+        grid.innerHTML = '';
+        for (let i = 1; i <= 100; i++) {
+          const sq = document.createElement('div');
+          sq.className = 'square';
+          sq.id = 'sq-' + i;
+          sq.dataset.number = i;
+          sq.textContent = i;
+          sq.onclick = () => toggleSquare(i);
+          grid.appendChild(sq);
+        }
+      }
+
+      function loadAllData() {
+        document.getElementById('gridLoading').style.display = 'flex';
+        google.script.run
+          .withSuccessHandler(data => {
+            serverData = data;
+            populateMembersDropdown();
+            updateColorPreview();
+            applyBoardState();
+            updateSummary();
+            document.getElementById('gridLoading').style.display = 'none';
+          })
+          .withFailureHandler(err => {
+            alert('Failed to load board data: ' + err.message);
+            document.getElementById('gridLoading').style.display = 'none';
+          })
+          .getSyncData();
+      }
+
+      function getContrastingTextColor(hexColor) {
+        if (!hexColor || hexColor.charAt(0) !== '#') return '#ffffff';
+        let hex = hexColor.substring(1);
+        if (hex.length === 3) {
+          hex = hex.split('').map(c => c + c).join('');
+        }
+        const r = parseInt(hex.substring(0, 2), 16) || 0;
+        const g = parseInt(hex.substring(2, 4), 16) || 0;
+        const b = parseInt(hex.substring(4, 6), 16) || 0;
+        const yiq = ((r * 299) + (g * 587) + (b * 114)) / 1000;
+        return (yiq >= 150) ? '#000000' : '#ffffff';
+      }
+
+      function updateColorPreview() {
+        const picker = document.getElementById('colorPicker');
+        const example = document.getElementById('colorExampleSquare');
+        const legendNew = document.getElementById('legendNewBox');
+        const color = picker.value || '#2e7d32';
+        const textColor = getContrastingTextColor(color);
+
+        example.style.backgroundColor = color;
+        example.style.color = textColor;
+
+        if (legendNew) {
+          legendNew.style.backgroundColor = color;
+        }
+        applyBoardState();
+      }
+
+      function updateBoardProgress() {
+        const takenCount = Object.keys(serverData.takenSquares || {}).length;
+        const newCount = selectedSquares.size;
+        const totalClaimed = takenCount + newCount;
+        const pct = Math.min(100, Math.round((totalClaimed / 100) * 100));
+
+        const textEl = document.getElementById('boardFillText');
+        textEl.textContent = `${totalClaimed} / 100 Claimed`;
+        document.getElementById('progressFill').style.width = pct + '%';
+      }
+
+      function populateMembersDropdown() {
+        const select = document.getElementById('memberSelect');
+        const currentVal = select.value;
+        select.innerHTML = '<option value="">🎯 Choose Member</option><option value="__NEW__">✏️ New Member</option>';
+
+        const names = Object.keys(serverData.members || {}).sort((a, b) => a.localeCompare(b));
+        names.forEach(name => {
+          const opt = document.createElement('option');
+          opt.value = name;
+          opt.textContent = name;
+          select.appendChild(opt);
+        });
+
+        if (currentVal && (serverData.members[currentVal] || currentVal === '__NEW__')) {
+          select.value = currentVal;
+        }
+      }
+
+      function onMemberSelectChange() {
+        const val = document.getElementById('memberSelect').value;
+        const newGroup = document.getElementById('newMemberGroup');
+        const colorPicker = document.getElementById('colorPicker');
+        const legendPrior = document.getElementById('legendPriorBox');
+
+        if (val === '__NEW__') {
+          newGroup.style.display = 'block';
+          colorPicker.disabled = false;
+          colorPicker.value = serverData.newColor || '#2e7d32';
+          currentMemberPriorSquares.clear();
+        } else if (val) {
+          newGroup.style.display = 'none';
+          const memberInfo = serverData.members[val];
+          if (memberInfo) {
+            colorPicker.value = memberInfo.color || '#2e7d32';
+            colorPicker.disabled = true;
+            currentMemberPriorSquares = new Set(memberInfo.squares || []);
+            if (legendPrior) {
+              legendPrior.style.backgroundColor = memberInfo.color || '#1565c0';
+            }
+          }
+        } else {
+          newGroup.style.display = 'none';
+          colorPicker.disabled = false;
+          colorPicker.value = serverData.newColor || '#2e7d32';
+          currentMemberPriorSquares.clear();
+        }
+
+        // If newly selected member already owns one of the current picks, deselect it
+        currentMemberPriorSquares.forEach(sq => {
+          if (selectedSquares.has(sq)) {
+            selectedSquares.delete(sq);
+          }
+        });
+
+        // Respect max allowed squares per member
+        const max = serverData.config.maxSquares || 50;
+        if (currentMemberPriorSquares.size + selectedSquares.size > max) {
+          while (currentMemberPriorSquares.size + selectedSquares.size > max) {
+            const lastPick = Array.from(selectedSquares).pop();
+            selectedSquares.delete(lastPick);
+          }
+          alert(`Note: Total picks for ${val} cannot exceed ${max}. Extra picks were trimmed.`);
+        }
+
+        updateColorPreview();
+        applyBoardState();
+        updateSummary();
+      }
+
+      function applyBoardState() {
+        const activeColor = document.getElementById('colorPicker').value || '#2e7d32';
+        const activeTextColor = getContrastingTextColor(activeColor);
+
+        for (let i = 1; i <= 100; i++) {
+          const sq = document.getElementById('sq-' + i);
+          sq.className = 'square';
+          sq.style.backgroundColor = '';
+          sq.style.color = '';
+
+          if (currentMemberPriorSquares.has(i)) {
+            // Prior pick: member's color, NO star
+            sq.classList.add('mine');
+            sq.style.backgroundColor = activeColor;
+            sq.style.color = activeTextColor;
+          } else if (selectedSquares.has(i)) {
+            // New pick: member's color, bold black outline, WITH star
+            sq.classList.add('selected');
+            sq.style.backgroundColor = activeColor;
+            sq.style.color = activeTextColor;
+          } else if (serverData.takenSquares && serverData.takenSquares[i]) {
+            // Taken by someone else: neutral dark slate gray
+            sq.classList.add('taken');
+          }
+        }
+      }
+
+      function toggleSquare(num) {
+        if (currentMemberPriorSquares.has(num)) {
+          alert(`Square #${num} is already one of your prior selections!`);
+          return;
+        }
+        if (serverData.takenSquares && serverData.takenSquares[num]) {
+          alert(`Square #${num} has already been claimed by someone else.`);
+          return;
+        }
+
+        const max = serverData.config.maxSquares || 50;
+        if (selectedSquares.has(num)) {
+          selectedSquares.delete(num);
+        } else {
+          const totalAfter = currentMemberPriorSquares.size + selectedSquares.size + 1;
+          if (totalAfter > max) {
+            alert(`Maximum allowed squares per person is ${max}.`);
+            return;
+          }
+          selectedSquares.add(num);
+        }
+
+        applyBoardState();
+        updateSummary();
+      }
+
+      function quickPickRandom() {
+        const max = serverData.config.maxSquares || 50;
+        if (currentMemberPriorSquares.size + selectedSquares.size >= max) {
+          alert(`You have reached the maximum limit of ${max} squares.`);
+          return;
+        }
+
+        const candidates = [];
+        for (let i = 1; i <= 100; i++) {
+          if (!serverData.takenSquares[i] && !currentMemberPriorSquares.has(i) && !selectedSquares.has(i)) {
+            candidates.push(i);
+          }
+        }
+
+        if (candidates.length === 0) {
+          alert('No remaining open squares available on the board!');
+          return;
+        }
+
+        const luckyNumber = candidates[Math.floor(Math.random() * candidates.length)];
+        selectedSquares.add(luckyNumber);
+        applyBoardState();
+        updateSummary();
+      }
+
+      function clearNewSelections() {
+        selectedSquares.clear();
+        applyBoardState();
+        updateSummary();
+      }
+
+      function updateSummary() {
+        const priorCount = currentMemberPriorSquares.size;
+        const newCount = selectedSquares.size;
+        const totalCount = priorCount + newCount;
+        const costPerSquare = serverData.config.cost || 0;
+
+        updateBoardProgress();
+
+        // Prior Badges
+        const priorSection = document.getElementById('priorSection');
+        if (priorCount > 0) {
+          priorSection.style.display = 'block';
+          document.getElementById('priorCount').textContent = priorCount;
+          document.getElementById('priorBadges').innerHTML = Array.from(currentMemberPriorSquares)
+            .sort((a,b) => a - b)
+            .map(n => `<span class="badge badge-prior">${n}</span>`)
+            .join('');
+        } else {
+          priorSection.style.display = 'none';
+        }
+
+        // New Badges
+        document.getElementById('newCount').textContent = newCount;
+        const clearBtn = document.getElementById('clearNewBtn');
+        const newBadges = document.getElementById('newBadges');
+
+        if (newCount > 0) {
+          clearBtn.style.display = 'inline';
+          newBadges.innerHTML = Array.from(selectedSquares)
+            .sort((a,b) => a - b)
+            .map(n => `<span class="badge badge-new">${n}</span>`)
+            .join('');
+          document.getElementById('submitBtn').textContent = `Review (${newCount}) Picks`;
+        } else {
+          clearBtn.style.display = 'none';
+          newBadges.innerHTML = '<span style="color:#90a4ae; font-style:italic; font-size:0.72rem;">Select squares from board</span>';
+          document.getElementById('submitBtn').textContent = 'Review Picks';
+        }
+
+        // Financial Ledger vs Free Mode
+        const ledger = document.getElementById('financialLedger');
+        const freeBadge = document.getElementById('freeBadge');
+
+        if (costPerSquare > 0) {
+          ledger.style.display = 'grid';
+          freeBadge.style.display = 'none';
+
+          document.getElementById('priorCostVal').textContent = `$${(priorCount * costPerSquare).toFixed(2)}`;
+          document.getElementById('newCostVal').textContent = `$${(newCount * costPerSquare).toFixed(2)}`;
+          document.getElementById('totalCostVal').textContent = `$${(totalCount * costPerSquare).toFixed(2)}`;
+        } else {
+          ledger.style.display = 'none';
+          freeBadge.style.display = 'block';
+        }
+      }
+
+      function getEffectiveName() {
+        const val = document.getElementById('memberSelect').value;
+        if (val === '__NEW__') {
+          return document.getElementById('newMemberName').value.trim();
+        }
+        return val.trim();
+      }
+
+      function onReviewClick() {
+        const name = getEffectiveName();
+        if (!name) {
+          alert('Please enter or select your name.');
+          return;
+        }
+
+        const min = serverData.config.minSquares || 1;
+        if (selectedSquares.size === 0) {
+          alert('Please pick at least one new square.');
+          return;
+        }
+        if (currentMemberPriorSquares.size === 0 && selectedSquares.size < min) {
+          alert(`You must select at least ${min} square(s).`);
+          return;
+        }
+
+        const sortedNew = Array.from(selectedSquares).sort((a, b) => a - b);
+        const sortedPrior = Array.from(currentMemberPriorSquares).sort((a, b) => a - b);
+
+        document.getElementById('confirmName').textContent = name;
+        document.getElementById('confirmPriorPicks').textContent = sortedPrior.length ? sortedPrior.join(', ') : 'None';
+        document.getElementById('confirmNewPicks').textContent = sortedNew.join(', ');
+        document.getElementById('confirmTotalCount').textContent = `${sortedPrior.length + sortedNew.length} squares`;
+
+        const cost = serverData.config.cost || 0;
+        const costDetail = document.getElementById('confirmCostDetail');
+        if (cost > 0) {
+          costDetail.innerHTML = `New Amount Due: $${(cost * sortedNew.length).toFixed(2)}<br><span style="font-size:0.72rem; color:#546e7a;">(Total Pool Balance: $${(cost * (sortedPrior.length + sortedNew.length)).toFixed(2)})</span>`;
+        } else {
+          costDetail.textContent = '🎉 Free Entry Pool — No Cost';
+        }
+
+        document.getElementById('confirmOverlay').style.display = 'flex';
+      }
+
+      function hideConfirm() {
+        document.getElementById('confirmOverlay').style.display = 'none';
+      }
+
+      function onCancelClick() {
+        if (selectedSquares.size > 0 && !confirm('Discard current selections?')) {
+          return;
+        }
+        try {
+          google.script.host.close();
+        } catch (e) {
+          window.close();
+        }
+      }
+
+      function submitFinalPicks() {
+        const name = getEffectiveName();
+        const numbers = Array.from(selectedSquares);
+        const color = document.getElementById('colorPicker').value;
+        const btn = document.getElementById('finalConfirmBtn');
+
+        btn.disabled = true;
+        btn.innerText = 'Submitting...';
+
+        google.script.run
+          .withSuccessHandler(res => {
+            btn.disabled = false;
+            btn.innerText = 'Confirm & Save';
+            hideConfirm();
+
+            if (res.success) {
+              document.getElementById('successMsg').textContent = res.message;
+              document.getElementById('successOverlay').style.display = 'flex';
+            } else {
+              alert(res.message);
+              loadAllData();
+            }
+          })
+          .withFailureHandler(err => {
+            btn.disabled = false;
+            btn.innerText = 'Confirm & Save';
+            alert('Submission error: ' + err.message);
+          })
+          .submitSquarePicks(name, numbers, color);
+      }
+
+      /* Clean reset avoiding window.location.reload() white screen in GAS sidebars */
+      function resetBoardAfterSubmit() {
+        document.getElementById('successOverlay').style.display = 'none';
+        selectedSquares.clear();
+        currentMemberPriorSquares.clear();
+        document.getElementById('memberSelect').value = '';
+        document.getElementById('newMemberName').value = '';
+        document.getElementById('newMemberGroup').style.display = 'none';
+        loadAllData();
+      }
+    </script>
+  </body>
+</html>
