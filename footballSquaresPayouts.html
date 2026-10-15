@@ -1,0 +1,334 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <base target="_top">
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: 'Montserrat', Arial, sans-serif; padding: 16px; margin: 0; background-color: #F8f9fa; font-size: 13px; color: #202124; }
+    
+    /* Loading Overlay */
+    #loading { position: fixed; inset: 0; background: rgba(255,255,255,0.9); display: flex; flex-direction: column; justify-content: center; align-items: center; z-index: 1000; }
+    .spinner { border: 4px solid #f3f3f3; border-top: 4px solid #013369; border-radius: 50%; width: 34px; height: 34px; animation: spin 1s linear infinite; margin-bottom: 12px; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    .hidden { display: none !important; }
+
+    /* Top Summary Box */
+    .summary-box { background: #fff; border: 1px solid #dadce0; border-radius: 8px; padding: 14px 20px; display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+    .stat-group { display: flex; flex-direction: column; gap: 4px; }
+    .stat-label { font-size: 11px; font-weight: 700; color: #5f6368; text-transform: uppercase; letter-spacing: 0.5px; }
+    .stat-value { font-size: 18px; font-weight: 800; color: #013369; display: flex; align-items: center; gap: 4px; }
+    .stat-input { font-family: 'Montserrat', sans-serif; font-size: 16px; font-weight: 700; color: #013369; width: 70px; padding: 4px 6px; border: 1px solid #dadce0; border-radius: 4px; text-align: right; }
+    
+    /* Table Styles */
+    .payout-table { width: 100%; border-collapse: collapse; background: #fff; border-radius: 8px; overflow: hidden; box-shadow: 0 1px 3px rgba(0,0,0,0.08); margin-bottom: 16px; }
+    .payout-table th { background: #013369; color: #fff; font-weight: 700; font-size: 12px; text-align: center; padding: 10px; border: 1px solid #012852; }
+    .payout-table th:first-child { text-align: left; }
+    .payout-table td { padding: 8px 10px; text-align: center; border: 1px solid #dadce0; vertical-align: middle; }
+    .payout-table td:first-child { text-align: left; font-weight: 700; font-size: 12px; }
+    
+    .row-disabled { background-color: #f1f3f4; }
+    .row-disabled input[type="number"] { opacity: 0.5; pointer-events: none; background: #e8eaed; }
+    .row-disabled td { color: #9aa0a6; }
+
+    /* Inputs */
+    .cell-input { width: 65px; padding: 6px; border: 1px solid #dadce0; border-radius: 4px; font-size: 12px; font-family: inherit; font-weight: 600; text-align: right; }
+    .cell-input:focus { outline: none; border-color: #013369; }
+    
+    .row-total { font-weight: 800; color: #3c4043; font-size: 13px; }
+    .mult-badge { font-size: 9px; font-weight: 800; background: #e8eaed; color: #5f6368; padding: 2px 6px; border-radius: 10px; margin-left: 6px; vertical-align: middle; }
+
+    /* Footer Row */
+    .footer-row td { background: #f8f9fa; font-weight: 800; font-size: 13px; color: #013369; border-top: 2px solid #dadce0; }
+
+    /* Status Banner */
+    .status-banner { padding: 12px 16px; border-radius: 6px; font-weight: 700; font-size: 13px; display: flex; align-items: center; justify-content: center; margin-bottom: 16px; transition: all 0.3s ease; }
+    .status-ok { background-color: #e6f4ea; color: #137333; border: 1px solid #ceead6; }
+    .status-under { background-color: #fff8e1; color: #b08d00; border: 1px solid #ffecb3; }
+    .status-over { background-color: #fce8e6; color: #c5221f; border: 1px solid #fad2cf; }
+
+    /* Action Buttons */
+    .btn-group { display: flex; justify-content: flex-end; gap: 8px; }
+    .btn { padding: 10px 18px; border: none; border-radius: 5px; cursor: pointer; font-size: 13px; font-weight: 700; font-family: inherit; transition: background 0.2s; }
+    .btn-primary { background-color: #013369; color: white; }
+    .btn-primary:hover { background-color: #2067b3; }
+    .btn-primary:disabled { background-color: #88a3c4; cursor: not-allowed; }
+    .btn-cancel { background-color: #e8eaed; color: #3c4043; }
+    .btn-cancel:hover { background-color: #dadce0; }
+    
+    /* Fix Commish Button */
+    .btn-fix { background-color: #b08d00; color: #fff; border: none; padding: 5px 12px; border-radius: 4px; font-size: 11px; font-weight: 700; cursor: pointer; margin-left: 14px; transition: background 0.2s; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+    .btn-fix:hover { background-color: #8c7000; }
+
+    /* Checkbox */
+    .chk-container { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+    .chk-container input { width: 16px; height: 16px; cursor: pointer; }
+  </style>
+</head>
+<body>
+
+  <div id="loading">
+    <div class="spinner"></div>
+    <div style="font-weight: 600; color: #013369;">Loading Payouts...</div>
+  </div>
+
+  <!-- Top Summary -->
+  <div class="summary-box">
+    <div class="stat-group">
+      <span class="stat-label">Buy-In / Sq</span>
+      <span class="stat-value">$ <input type="number" id="inpCost" class="stat-input" step="any" min="0" oninput="recalculateAll()"></span>
+    </div>
+    <div class="stat-group">
+      <span class="stat-label">Total Pot (100 Sq)</span>
+      <span class="stat-value" id="lblPot">$0.00</span>
+    </div>
+    <div class="stat-group">
+      <span class="stat-label">Commish Cut</span>
+      <span class="stat-value">$ <input type="number" id="inpCommish" class="stat-input" step="any" min="0" oninput="recalculateAll()"></span>
+    </div>
+  </div>
+
+  <!-- Table -->
+  <table class="payout-table" id="payoutTable">
+    <thead>
+      <tr>
+        <th>Payout Category</th>
+        <th>Q1 / 1st</th>
+        <th>Q2 / Half</th>
+        <th>Q3 / 3rd</th>
+        <th>Q4 / Final</th>
+        <th>Row Total</th>
+      </tr>
+    </thead>
+    <tbody id="tbodyData">
+      <!-- Rows generated by JS -->
+    </tbody>
+    <tfoot>
+      <tr class="footer-row">
+        <td>QUARTER TOTALS</td>
+        <td id="totQ1">$0.00</td>
+        <td id="totQ2">$0.00</td>
+        <td id="totQ3">$0.00</td>
+        <td id="totQ4">$0.00</td>
+        <td id="totGrand">$0.00</td>
+      </tr>
+    </tfoot>
+  </table>
+
+  <!-- Dynamic Status Banner -->
+  <div id="statusBanner" class="status-banner status-ok">
+    Perfectly allocated!
+  </div>
+
+  <!-- Buttons -->
+  <div class="btn-group">
+    <button class="btn btn-cancel" onclick="google.script.host.close()">Cancel</button>
+    <button class="btn btn-primary" id="btnSave" onclick="saveData()">Save Payouts</button>
+  </div>
+
+  <script>
+    let configData = null;
+
+    // Row definitions outlining the key, UI label, and multiplier
+    const ROW_DEFS = [
+      { key: 'main', label: '🎯 Main Match', mult: 1, required: true },
+      { key: 'inverse', label: '🔄 Inverse', mult: 1 },
+      { key: 'adjacent', label: '➕ Adjacent', mult: 4 },
+      { key: 'diagonal', label: '✖️ Diagonal', mult: 4 }
+    ];
+
+    window.onload = function() {
+      google.script.run
+        .withSuccessHandler(initForm)
+        .withFailureHandler(err => { alert('Error loading: ' + err.message); })
+        .getPayoutsData();
+    };
+
+    function initForm(data) {
+      if (!data) {
+        alert("Config not found. Please set up the sidebar first.");
+        google.script.host.close();
+        return;
+      }
+      configData = data;
+      
+      document.getElementById('inpCost').value = configData.cost || 0;
+      document.getElementById('inpCommish').value = configData.payouts.commissioner.value || 0;
+
+      const tbody = document.getElementById('tbodyData');
+      tbody.innerHTML = '';
+
+      ROW_DEFS.forEach(def => {
+        const pObj = configData.payouts[def.key] || { active: false, splits: [0,0,0,0] };
+        // Force Main to be active always
+        if (def.required) pObj.active = true;
+
+        const tr = document.createElement('tr');
+        tr.id = `row_${def.key}`;
+        if (!pObj.active) tr.className = 'row-disabled';
+
+        // 1. Label & Checkbox cell
+        const tdLabel = document.createElement('td');
+        const chkId = `chk_${def.key}`;
+        
+        let chkHtml = def.required 
+          ? `<input type="checkbox" id="${chkId}" checked disabled onchange="toggleRow('${def.key}')">`
+          : `<input type="checkbox" id="${chkId}" ${pObj.active ? 'checked' : ''} onchange="toggleRow('${def.key}')">`;
+        
+        const multBadge = def.mult > 1 ? `<span class="mult-badge">x${def.mult}</span>` : '';
+        tdLabel.innerHTML = `<label class="chk-container">${chkHtml} <span>${def.label} ${multBadge}</span></label>`;
+        tr.appendChild(tdLabel);
+
+        // 2-5. Inputs for Q1-Q4
+        for (let i = 0; i < 4; i++) {
+          const td = document.createElement('td');
+          const val = pObj.splits[i] !== undefined ? pObj.splits[i] : 0;
+          td.innerHTML = `$ <input type="number" id="inp_${def.key}_${i}" class="cell-input" step="0.01" min="0" value="${val}" oninput="recalculateAll()">`;
+          tr.appendChild(td);
+        }
+
+        // 6. Row Total
+        const tdTot = document.createElement('td');
+        tdTot.id = `tot_${def.key}`;
+        tdTot.className = 'row-total';
+        tdTot.textContent = '$0.00';
+        tr.appendChild(tdTot);
+
+        tbody.appendChild(tr);
+      });
+
+      document.getElementById('loading').classList.add('hidden');
+      recalculateAll();
+    }
+
+    function toggleRow(key) {
+      const chk = document.getElementById(`chk_${key}`).checked;
+      const row = document.getElementById(`row_${key}`);
+      if (chk) {
+        row.classList.remove('row-disabled');
+      } else {
+        row.classList.add('row-disabled');
+      }
+      recalculateAll();
+    }
+
+    function formatM(num) {
+      return '$' + parseFloat(num).toFixed(2);
+    }
+
+    function addRemainderToCommish() {
+      const cost = parseFloat(document.getElementById('inpCost').value) || 0;
+      const commish = parseFloat(document.getElementById('inpCommish').value) || 0;
+      const pot = cost * 100;
+      const netPot = pot - commish;
+
+      let grandTotal = 0;
+      ROW_DEFS.forEach(def => {
+        const isActive = document.getElementById(`chk_${def.key}`).checked;
+        if (isActive) {
+          for (let i = 0; i < 4; i++) {
+            const val = parseFloat(document.getElementById(`inp_${def.key}_${i}`).value) || 0;
+            grandTotal += (val * def.mult);
+          }
+        }
+      });
+
+      const remainder = netPot - grandTotal;
+      if (remainder > 0) {
+        document.getElementById('inpCommish').value = (commish + remainder).toFixed(2);
+        recalculateAll();
+      }
+    }
+
+    function recalculateAll() {
+      const cost = parseFloat(document.getElementById('inpCost').value) || 0;
+      const commish = parseFloat(document.getElementById('inpCommish').value) || 0;
+      const pot = cost * 100;
+      const netPot = pot - commish;
+
+      document.getElementById('lblPot').textContent = formatM(pot);
+
+      let colSums = [0, 0, 0, 0];
+      let grandTotal = 0;
+
+      ROW_DEFS.forEach(def => {
+        const isActive = document.getElementById(`chk_${def.key}`).checked;
+        let rowSum = 0;
+
+        for (let i = 0; i < 4; i++) {
+          const val = parseFloat(document.getElementById(`inp_${def.key}_${i}`).value) || 0;
+          
+          if (isActive) {
+            // Add value * multiplier to the specific Quarter column
+            colSums[i] += (val * def.mult);
+            // Add value * multiplier to the row sum
+            rowSum += (val * def.mult);
+          }
+        }
+
+        // Display Row Total
+        document.getElementById(`tot_${def.key}`).textContent = formatM(rowSum);
+        grandTotal += rowSum;
+      });
+
+      // Update Column Footer
+      for (let i = 0; i < 4; i++) {
+        document.getElementById(`totQ${i+1}`).textContent = formatM(colSums[i]);
+      }
+      document.getElementById('totGrand').textContent = formatM(grandTotal);
+
+      // Validate Math
+      const remainder = netPot - grandTotal;
+      const banner = document.getElementById('statusBanner');
+      const btnSave = document.getElementById('btnSave');
+
+      if (Math.abs(remainder) < 0.01) { // Floating point safeguard
+        banner.className = 'status-banner status-ok';
+        banner.textContent = `Perfectly allocated!`;
+        btnSave.disabled = false;
+      } 
+      else if (remainder > 0) {
+        banner.className = 'status-banner status-under';
+        banner.innerHTML = `<span>⚠️ <b>${formatM(remainder)} unallocated</b></span> 
+                            <button class="btn-fix" onclick="addRemainderToCommish()">Add to Commish Cut</button>`;
+        btnSave.disabled = true; // Force them to allocate correctly!
+      } 
+      else {
+        banner.className = 'status-banner status-over';
+        banner.innerHTML = `🚨 <b>Over allocated by ${formatM(Math.abs(remainder))}</b>`;
+        btnSave.disabled = true; // Can't save bad math
+      }
+    }
+
+    function saveData() {
+      document.getElementById('loading').classList.remove('hidden');
+
+      const finalCost = parseFloat(document.getElementById('inpCost').value) || 0;
+      const finalCommish = parseFloat(document.getElementById('inpCommish').value) || 0;
+
+      const newPayouts = {
+        commissioner: { value: finalCommish, percent: 0 } // Percent recalculated backend
+      };
+
+      ROW_DEFS.forEach(def => {
+        const isActive = document.getElementById(`chk_${def.key}`).checked;
+        const splits = [];
+        for (let i = 0; i < 4; i++) {
+          splits.push(parseFloat(document.getElementById(`inp_${def.key}_${i}`).value) || 0);
+        }
+        newPayouts[def.key] = { active: isActive, splits: splits };
+      });
+
+      const payload = {
+        cost: finalCost,
+        payouts: newPayouts
+      };
+
+      google.script.run
+        .withSuccessHandler(() => { google.script.host.close(); })
+        .withFailureHandler(err => { alert('Error saving: ' + err.message); document.getElementById('loading').classList.add('hidden'); })
+        .savePayoutsData(payload);
+    }
+  </script>
+</body>
+</html>
