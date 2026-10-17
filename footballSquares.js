@@ -1,7 +1,7 @@
 /**
  * GOOGLE SHEETS FOOTBALL SQUARES
  * League Creator & Management Platform Tool
- * v1.0 | 10/14/2026
+ * v1.0 | 10/17/2026
  * Created by Ben Powers
  * ben.powers.creative@gmail.com
  * 
@@ -20,12 +20,14 @@
  *  🎯 Pick Square - Bring up the sidebar for square selections by the pool manager
  *  📋 Open Web Form - Tool top open directly or copy the URL for the web form (only appears once deployed)
  *  
+ *  💰 Edit Payouts - Tool to manually adjust what winning categories pay out and manually adjust values, including buy-in (only appears when paid pool is selected in Configuration)
  *  🧮 Set Numbers - Tool to set random values for the home and away scoring digits (can also set 0-9 standard order)
  *  ⭕ Clear Numbers - Removes values for home and away scoring digits
  *  🔄 Save Results & Reset Full Sheet - Removes scoring digits, entries, and clears pool field
  * 
  *  🌐 Web App Setup Guide - Sidebar instruction pop-up to explain how to make a web-based, shareable "Form"
  *  
+ *  ❓ Help & Instructions - Setup instructions and contact info
  * 
  * ------------------------------------------------------------------------
  * If you're feeling generous and would like to support my work,
@@ -36,12 +38,14 @@
  * 
  */
 // ==========================================
-// 0. GLOBALS
+// 0. GLOBAL VARIABLES
 // ==========================================
 
 const SCRIPT_VERSION = '1.0';
 const SHEET_NAME = 'SQUARES';
 const ENTRIES_SHEET = 'ENTRIES';
+const WINNERS_SHEET = 'WINNERS';
+const PAYOUTS_SHEET = 'PAYOUTS';
 const GRID_SIZE = 10;
 const NAMED_RANGE = 'SQUARES';
 const TRI_HIGHLIGHT = ["#FFF282","#F1D850","#E4BD00"];
@@ -130,8 +134,11 @@ function onOpen() {
   const ui = SpreadsheetApp.getUi();
   let menu = ui.createMenu('🏈 NFL Squares');
   let props = {};
+  let config = '';
+  let configObj = {};
   let isInitialized = false;
   let deployed = false; 
+  let isPaid = false;
   try {
     props = PropertiesService.getDocumentProperties();
   } catch (e) {}
@@ -139,28 +146,37 @@ function onOpen() {
     isInitialized = props.getProperty('initialized') === 'true';
   } catch (e) {}
   try {
-    const config = props.getProperty('squares_config');
+    config = props.getProperty('squares_config');
     if (config) {
-      deployed = JSON.parse()?.deployed;
+      configObj = JSON.parse(config);
+      deployed = configObj?.deployed;
+      isPaid = configObj?.isPaid;
     }
+
   } catch (e) {}
 
   if (!isInitialized) {
-    menu.addItem('🚀 Authorize & Initialize Sheet', 'showHelpSidebar');
+    menu.addItem('🚀 Authorize & Initialize Sheet', 'showHelpAndSupport');
   } else {
     menu.addItem('⚙️ Configuration', 'showSquaresConfigSidebar')
       .addItem('🎯 Pick Square', 'showSquarePicker');
-      if (deployed) {
+      if (deployed || deployed == 'true') {
         menu.addItem('📋 Open Web Form', 'showSquaresLinkDialog');
-      } 
-      menu.addSeparator()
-      .addItem('🧮 Set Numbers', 'setNumbers')
+      } else {
+        menu.addItem('📋 Open Web Form','firstDeployWebAppUrlChecker');
+      }
+      menu.addItem('▶️ Start Game', 'startGame')
+        .addSeparator()
+      if (isPaid || isPaid == 'true') {
+        menu.addItem('💰 Edit Payouts', 'showPayoutsDialog');
+      }
+      menu.addItem('🧮 Set Numbers', 'setNumbers')
       .addItem('⭕ Clear Numbers', 'clearNumbers')
       .addItem('🔄 Reset Full Sheet', 'saveAndReset');
       if (!deployed) {
         menu.addSeparator().addItem('🌐 Web App Setup Guide', 'showWebAppDeploymentGuide'); 
       }
-      menu.addSeparator().addItem('❓ Help & Instructions', 'showHelpSidebar');
+      menu.addSeparator().addItem('❓ Help & Instructions', 'showHelpAndSupport');
   }
   menu.addToUi();
 }
@@ -169,12 +185,12 @@ function onOpen() {
  * Displays the Help / Initialization sidebar.
  * Serves as the menu target and button handler.
  */
-function showHelpSidebar() {
-  const html = HtmlService.createHtmlOutputFromFile('footballSquaresHelpSidebar')
-    .setTitle('NFL Squares Help & Settings')
-    .setWidth(350);
-  
-  SpreadsheetApp.getUi().showSidebar(html);
+function showHelpAndSupport() {
+  const html = HtmlService.createHtmlOutputFromFile('footballSquaresHelp')
+      .setTitle('NFL Squares Help & Settings')
+      .setWidth(500)
+      .setHeight(800);
+  SpreadsheetApp.getUi().showModalDialog(html, ' ');
 }
 
 /**
@@ -218,7 +234,7 @@ function doGet(e) {
 }
 
 // ==========================================
-// 1. CONFIGURATION SIDEBAR
+// 1. CONFIGURATION SIDEBAR & PAYOUT EDITOR
 // ==========================================
 
 function showSquaresConfigSidebar() {
@@ -259,7 +275,8 @@ function getSquaresConfig() {
     maxSquares: maxSquares,
     disableAdditionalResponses: disableAdditionalResponses,
     commishCut: savedProps.commishCut !== undefined ? savedProps.commishCut : 0,
-    payoutSplits: savedProps.payoutSplits || [25, 25, 25, 25],
+    winRules: savedProps.winRules || {},
+    payouts: savedProps.payouts || {},
     paymentMethods: paymentMethods,
     nflData: NFL_DATA
   };
@@ -269,97 +286,112 @@ function processSquaresConfigSubmission(formObject) {
   try {
     const ss = SpreadsheetApp.getActiveSpreadsheet();
 
+    // Helper for safe team lookups
+    const awayData = formObject.awayTeam && NFL_DATA[formObject.awayTeam] ? NFL_DATA[formObject.awayTeam] : null;
+    const homeData = formObject.homeTeam && NFL_DATA[formObject.homeTeam] ? NFL_DATA[formObject.homeTeam] : null;
+
     // 1. Write text directly to TITLE, AWAY, and HOME named ranges
     const titleRange = ss.getRangeByName('TITLE');
     if (titleRange && formObject.groupName) {
       titleRange.setValue(formObject.groupName);
     }
     
-    const awayRange = ss.getRangeByName('AWAY');
-    if (awayRange && formObject.awayTeam) {
-      awayRange.setValue(NFL_DATA[formObject.awayTeam].name.toUpperCase());
-    }
+    if (awayData) {
+      const awayRange = ss.getRangeByName('AWAY');
+      if (awayRange) awayRange.setValue(awayData.name.toUpperCase());
 
-    const homeRange = ss.getRangeByName('HOME');
-    if (homeRange && formObject.homeTeam) {
-      homeRange.setValue(NFL_DATA[formObject.homeTeam].name.toUpperCase());
-    }
-
-    // Update ENTRIES_HOME and ENTRIES_AWAY
-    if (formObject.awayTeam) {
       const entAway = ss.getRangeByName('ENTRIES_AWAY');
       if (entAway) {
-        entAway.setValue(awayTeamName);
-        entAway.setBackground(NFL_DATA[formObject.awayTeam].colors[0]);
-        entAway.setFontColor(NFL_DATA[formObject.awayTeam].colors[1]);
+        entAway.setValue(awayData.name);
+        if (awayData.colors) {
+          entAway.setBackground(awayData.colors[0]);
+          entAway.setFontColor(awayData.colors[1]);
+        }
       }
+      
       const entAwayScores = ss.getRangeByName('ENTRIES_SCORES_AWAY');
-      if (entAwayScores) {
-        entAwayScores.setBackground(NFL_DATA[formObject.awayTeam].colors[0]);
-        entAwayScores.setFontColor(NFL_DATA[formObject.awayTeam].colors[1]);
+      if (entAwayScores && awayData.colors) {
+        entAwayScores.setBackground(awayData.colors[0]);
+        entAwayScores.setFontColor(awayData.colors[1]);
       }
     }
 
-    if (formObject.homeTeam) { 
+    if (homeData) { 
+      const homeRange = ss.getRangeByName('HOME');
+      if (homeRange) homeRange.setValue(homeData.name.toUpperCase());
+
       const entHome = ss.getRangeByName('ENTRIES_HOME');
       if (entHome) {
-        entHome.setValue(homeTeamName);
-        entHome.setBackground(NFL_DATA[formObject.homeTeam].colors[0]);
-        entHome.setFontColor(NFL_DATA[formObject.homeTeam].colors[1]);
+        entHome.setValue(homeData.name);
+        if (homeData.colors) {
+          entHome.setBackground(homeData.colors[0]);
+          entHome.setFontColor(homeData.colors[1]);
+        }
       }
+      
       const entHomeScores = ss.getRangeByName('ENTRIES_SCORES_HOME');
-      if (entHomeScores) {
-        entHomeScores.setBackground(NFL_DATA[formObject.homeTeam].colors[0]);
-        entHomeScores.setFontColor(NFL_DATA[formObject.homeTeam].colors[1]);
+      if (entHomeScores && homeData.colors) {
+        entHomeScores.setBackground(homeData.colors[0]);
+        entHomeScores.setFontColor(homeData.colors[1]);
       }
     }
     
     const updateTime = new Date().toISOString();
     const updatedTimeRange = ss.getRangeByName('ENTRIES_DATE_CONFIGURED');
-    if (updatedTimeRange && updateTime) {
+    if (updatedTimeRange) {
       updatedTimeRange.setValue(updateTime);
     }
 
     // 2. Cost & Limits
-    const isPaid = formObject.isPaid === true || formObject.isPaid === 'true';
+    const isPaid = String(formObject.isPaid) === 'true';
     const cost = isPaid ? (parseFloat(formObject.cost) || 0) : 0;
     
     const costRange = ss.getRangeByName('ENTRIES_COST');
     if (costRange) {
-      if (isPaid) {
-        costRange.setValue(`$${cost}`);
-      } else {
-        costRange.setValue('FREE');
-      }
+      costRange.setValue(isPaid ? `$${cost}` : 'FREE');
     }
     
-    const minSquares = formObject.minSquares || 1;
-    const maxSquares = formObject.maxSquares || 50;
+    const minSquares = parseInt(formObject.minSquares, 10) || 1;
+    const maxSquares = parseInt(formObject.maxSquares, 10) || 50;
     
     const minMaxRange = ss.getRangeByName('ENTRIES_LIMITS');
     if (minMaxRange) {
       minMaxRange.setValue(`${minSquares} to ${maxSquares}`);
     }
     
-    const disableAdditionalResponses = formObject.disableAdditionalResponses || false;
-    const paymentMethods = formObject.paymentMethods || null;
+    const disableAdditionalResponses = String(formObject.disableAdditionalResponses) === 'true';
+
+    // Helper to prevent double-stringifying nested objects/arrays
+    const parseIfString = (val) => {
+      if (typeof val === 'string') {
+        try { return JSON.parse(val); } catch (e) { return val; }
+      }
+      return val || null;
+    };
 
     // 3. Document Properties
     const docProps = PropertiesService.getDocumentProperties();
     const configToSave = {
-      away: formObject.awayTeam,
-      home: formObject.homeTeam,
+      groupName: formObject.groupName || '',
+      away: formObject.awayTeam || '',
+      home: formObject.homeTeam || '',
       isPaid: isPaid,
       cost: cost,
       minSquares: minSquares,
       maxSquares: maxSquares,
       disableAdditionalResponses: disableAdditionalResponses,
       commishCut: parseFloat(formObject.commishCut) || 0,
-      payoutSplits: formObject.payoutSplits || [25, 25, 25, 25],
-      paymentMethods: paymentMethods,
+      winRules: parseIfString(formObject.winRules),
+      payouts: parseIfString(formObject.payouts),
+      paymentMethods: parseIfString(formObject.paymentMethods),
       updatedAt: updateTime,
     };
+
+    // Overwrites existing "squares_config" key cleanly
     docProps.setProperty('squares_config', JSON.stringify(configToSave));
+
+    updatePayoutsSheetVisibility(isPaid);
+    onOpen();
 
     ss.toast('Matchup and pool settings updated.', '🏈 Saved');
     Logger.log('🏈 Saved: Matchup and pool settings updated.');
@@ -369,6 +401,66 @@ function processSquaresConfigSubmission(formObject) {
     Logger.log(`Error in processSquaresConfigSubmission: ${err.stack}`);
     throw new Error(err.message);
   }
+}
+
+// PAYOUTS EDITOR BACKEND
+
+function showPayoutsDialog() {
+  const html = HtmlService.createHtmlOutputFromFile('footballSquaresPayouts')
+    .setTitle('Granular Payout Editor')
+    .setWidth(680)
+    .setHeight(480);
+  SpreadsheetApp.getUi().showModalDialog(html, '💰 Granular Payout Control');
+}
+
+function getPayoutsData() {
+  const configStr = PropertiesService.getDocumentProperties().getProperty('squares_config');
+  if (!configStr) return null;
+  
+  const config = JSON.parse(configStr);
+  
+  // Provide defaults if the payouts object doesn't exist yet
+  if (!config.payouts) {
+    config.payouts = {
+      main: { active: true, splits: [0, 0, 0, 0] },
+      inverse: { active: false, splits: [0, 0, 0, 0] },
+      adjacent: { active: false, splits: [0, 0, 0, 0] },
+      diagonal: { active: false, splits: [0, 0, 0, 0] },
+      commissioner: { value: 0, percent: 0 }
+    };
+  }
+  return {
+    cost: config.cost || 0,
+    payouts: config.payouts
+  };
+}
+
+function savePayoutsData(data) {
+  const docProps = PropertiesService.getDocumentProperties();
+  const configStr = docProps.getProperty('squares_config');
+  if (!configStr) return { success: false, message: 'Configuration not found.' };
+  
+  const config = JSON.parse(configStr);
+  
+  // Update the cost and payouts
+  config.cost = data.cost;
+  config.payouts = data.payouts;
+  
+  // Resync percentages based on the hard dollars the user entered
+  const pot = data.cost * 100;
+  if (pot > 0) {
+    config.commishCut = parseFloat(((data.payouts.commissioner.value / pot) * 100).toFixed(2));
+    config.payouts.commissioner.percent = config.commishCut;
+  }
+  
+  docProps.setProperty('squares_config', JSON.stringify(config));
+  
+  updatePayoutsSheetVisibility(config.isPaid && config.cost > 0);
+
+  // Re-run the menu builder just in case they toggled cost to $0 (which hides it on next load)
+  onOpen();
+  
+  return { success: true };
 }
 
 function viewConfig() {
@@ -423,29 +515,63 @@ function readMatchup_() {
   };
 }
 
+/**
+ * Reads and returns the complete 'squares_config' document property object,
+ * applying fallbacks and normalizing primary config values.
+ */
 function readConfig_() {
-  const saved = JSON.parse(
-    PropertiesService.getDocumentProperties().getProperty('squares_config') || '{}'
-  );
-  const pm = saved.paymentMethods || {};
-  const pay = {};
+  const rawProp = PropertiesService.getDocumentProperties().getProperty('squares_config');
+  
+  if (!rawProp) {
+    return {
+      groupName: '',
+      away: '',
+      home: '',
+      isPaid: false,
+      cost: 0,
+      minSquares: 1,
+      maxSquares: 100,
+      disableAdditionalResponses: false,
+      commishCut: 0,
+      winRules: null,
+      payouts: null,
+      paymentMethods: {},
+      activePaymentMethods: {}
+    };
+  }
 
-  if (saved.isPaid) {
+  let saved = {};
+  try {
+    saved = JSON.parse(rawProp);
+  } catch (e) {
+    Logger.log(`Error parsing squares_config JSON: ${e.message}`);
+    saved = {};
+  }
+
+  const isPaid = !!saved.isPaid;
+  const pm = saved.paymentMethods || {};
+  const activePay = {};
+
+  // Extract active handles/details into a clean key-value dictionary
+  if (isPaid) {
     Object.keys(pm).forEach(key => {
       const s = pm[key];
       if (!s || !s.enabled) return;
       const v = (key === 'other') ? s.paymentDetails : s.paymentHandle;
-      if (v) pay[key] = v;
+      if (v) activePay[key] = v;
     });
   }
 
   return {
-    isPaid: !!saved.isPaid,
-    cost: saved.isPaid ? Number(saved.cost) || 0 : 0,
+    ...saved, // Retains all fields (groupName, away, home, winRules, payouts, etc.)
+    isPaid: isPaid,
+    cost: isPaid ? (Number(saved.cost) || 0) : 0,
     minSquares: Number(saved.minSquares) || 1,
     maxSquares: Number(saved.maxSquares) || 100,
     disableAdditionalResponses: !!saved.disableAdditionalResponses,
-    paymentMethods: pay
+    commishCut: Number(saved.commishCut) || 0,
+    paymentMethods: pm,            // Preserves raw structure (enabled state, handles, details)
+    activePaymentMethods: activePay // Extracted map for easy handle lookups
   };
 }
 
@@ -554,10 +680,12 @@ function submitSquarePicks(name, numbers, color) {
       : (/^#[0-9a-f]{6}$/i.test(String(color)) ? color : '#4CAF50');
 
     // --- Enforce min/max server-side ---
-    const [, min, max] = readConfig_();
+    const config = readConfig_();
+    const minSquares = config.minSquares || 1;
+    const maxSquares = config.maxSquares || 50;
     const total = (existing ? existing.squares.length : 0) + nums.length;
-    if (total > max) return { success: false, message: `Maximum is ${max} squares per person.` };
-    if (total < min) return { success: false, message: `Minimum is ${min} square(s) per person.` };
+    if (total > maxSquares) return { success: false, message: `Maximum is ${max} squares per person.` };
+    if (total < minSquares) return { success: false, message: `Minimum is ${min} square(s) per person.` };
 
     // --- Write ---
     const sheet = getOrCreateEntriesSheet();
@@ -780,9 +908,6 @@ function hslToHex(h, s, l) {
 // ==========================================
 // 6. ONEDIT & WINNER EVALUATION
 // ==========================================
-// ==========================================
-// 6. ONEDIT & WINNER EVALUATION
-// ==========================================
 
 function onEdit(e) {
   // Prevent errors if run manually from the editor
@@ -801,156 +926,563 @@ function onEdit(e) {
   }
 
   const quarters = ['Q1', 'Q2', 'Q3', 'Q4'];
-  const qEmojis = { 'Q1': '1️⃣', 'Q2': '2️⃣', 'Q3': '3️⃣', 'Q4': '4️⃣' };
+  let editedScores = false;
   
   for (let q of quarters) {
     const awayRange = ss.getRangeByName(`${q}_AWAY`);
     const homeRange = ss.getRangeByName(`${q}_HOME`);
     
-    // Check if the cell edited belongs to the current quarter in the loop
-    if (isIntersecting(awayRange, e.range) || isIntersecting(homeRange, e.range)) {
+    const isAwayEdit = isIntersecting(awayRange, e.range);
+    const isHomeEdit = isIntersecting(homeRange, e.range);
+    
+    if (isAwayEdit || isHomeEdit) {
+      // --- SCORE PROGRESSION VALIDATION ---
+      const teamStr = isAwayEdit ? 'AWAY' : 'HOME';
+      const qIndex = quarters.indexOf(q);
+      const editedScoreStr = e.range.getValue();
+      const editedScore = parseInt(editedScoreStr, 10);
       
-      // a) Toast and log that a score was entered
-      ss.toast(`${qEmojis[q]} Score entered for ${q}!`, 'Score Updated');
-      Logger.log(`${q} score was modified.`);
-      
-      // b) Evaluate if both home and away for the same quarter are recorded
-      const aScore = awayRange.getValue();
-      const hScore = homeRange.getValue();
-      
-      // Note: We check !== '' because a score of 0 is valid and evaluates to false if we just do !aScore
-      if (aScore !== '' && hScore !== '') {
-        Logger.log(`Both scores present for ${q}. Away: ${aScore}, Home: ${hScore}`);
-        
-        // Extract the last digits
-        const aDigit = parseInt(aScore, 10) % 10;
-        const hDigit = parseInt(hScore, 10) % 10;
-        
-        if (isNaN(aDigit) || isNaN(hDigit)) {
-           Logger.log(`Invalid numbers in ${q} scores.`);
-           return;
-        }
-
-        // Fetch grid numbers to find the indices
-        const awayNumsRange = ss.getRangeByName('AWAY_NUMBERS');
-        const homeNumsRange = ss.getRangeByName('HOME_NUMBERS');
-        
-        if (!awayNumsRange || !homeNumsRange) return;
-
-        const awayNums = awayNumsRange.getValues()[0];
-        const homeNums = homeNumsRange.getValues().map(r => r[0]);
-        
-        const colIdx = awayNums.findIndex(v => v !== '' && parseInt(v, 10) === aDigit);
-        const rowIdx = homeNums.findIndex(v => v !== '' && parseInt(v, 10) === hDigit);
-        
-        if (colIdx === -1 || rowIdx === -1) {
-          ss.toast('Missing numbers on the top/side of the grid. Cannot determine winner.', 'Error');
-          return;
-        }
-        
-        // Calculate square number (1-100) and get its current contents
-        const squareNumber = (rowIdx * 10) + colIdx + 1;
-        const squaresRange = ss.getRangeByName('SQUARES');
-        const winningCell = squaresRange.getCell(rowIdx + 1, colIdx + 1);
-        const currentContent = winningCell.getValue();
-        
-        // d) Toast testing message with the square # and its contents
-        ss.toast(
-          `Winner for ${q} is Square #${squareNumber}!\nCurrent contents: ${currentContent}`, 
-          '🎯 Winner Found', 
-          10 // 10 seconds duration so you have time to read it
-        );
-        Logger.log(`Winner for ${q} is Square #${squareNumber}. Current content: ${currentContent}`);
-        
-        // c) Write the payout to ENTRIES_WIN_Qx
-        const winRangeName = `ENTRIES_WIN_${q}`;
-        const winRange = ss.getRangeByName(winRangeName);
-        
-        if (winRange) {
-          // Read configuration properties
-          const rawConfigStr = PropertiesService.getDocumentProperties().getProperty('squares_config');
-          const rawConfig = rawConfigStr ? JSON.parse(rawConfigStr) : {};
-          const isPaid = rawConfig.isPaid === true;
-          
-          let payout = 1; // Default for free pools
-          
-          if (isPaid && rawConfig.cost > 0) {
-            // Count total entries to calculate pot
-            const entriesSheet = ss.getSheetByName('ENTRIES');
-            // Subtract 1 for the header row
-            const entriesCount = entriesSheet ? Math.max(0, entriesSheet.getLastRow() - 1) : 0;
-            
-            const commish = parseFloat(rawConfig.commishCut) || 0;
-            const totalPot = (entriesCount * rawConfig.cost) - commish;
-            const splits = rawConfig.payoutSplits || [25, 25, 25, 25];
-            
-            // Map Q1->0, Q2->1, Q3->2, Q4->3
-            const qIndex = parseInt(q.replace('Q', '')) - 1;
-            const splitPct = parseFloat(splits[qIndex]) || 0;
-            
-            payout = totalPot * (splitPct / 100);
+      // Only validate if a number was actually entered (ignores clears/deletes)
+      if (editedScoreStr !== '' && !isNaN(editedScore)) {
+        if (qIndex > 0) {
+          const prevQ = quarters[qIndex - 1];
+          const prevScoreStr = ss.getRangeByName(`${prevQ}_${teamStr}`).getValue();
+          if (prevScoreStr !== '' && editedScore < parseInt(prevScoreStr, 10)) {
+            ss.toast(`Score cannot drop! ${prevQ} was ${prevScoreStr}.`, '❌ Invalid Score');
+            e.range.setValue(e.oldValue || ''); 
+            return;
           }
-          
-          // Write payout to the named range
-          winRange.setValue(payout);
-          Logger.log(`Wrote payout of ${payout} to ${winRangeName}.`);
-        } else {
-          Logger.log(`Warning: Named range ${winRangeName} not found on the sheet.`);
+        }
+        if (qIndex < quarters.length - 1) {
+          const nextQ = quarters[qIndex + 1];
+          const nextScoreStr = ss.getRangeByName(`${nextQ}_${teamStr}`).getValue();
+          if (nextScoreStr !== '' && editedScore > parseInt(nextScoreStr, 10)) {
+            ss.toast(`Score cannot be higher than ${nextQ} (${nextScoreStr}).`, '❌ Invalid Score');
+            e.range.setValue(e.oldValue || ''); 
+            return;
+          }
         }
       }
-      // Exit loop once we process the edited quarter to save processing time
+      editedScores = true;
       break; 
     }
   }
+
+  // If a score was successfully edited or cleared, trigger a complete recalculation
+  if (editedScores) {
+    recalculateAllWinners(ss);
+  }
 }
 
-function updateEntriesResults(quarter, squareNumber, entriesData) {
+/**
+ * Reads all scores, evaluates all active win rules, logs payouts, and completely rebuilds the grid.
+ */
+function recalculateAllWinners(ss) {
+  const quarters = ['Q1', 'Q2', 'Q3', 'Q4'];
+  
+  const awayNumsRange = ss.getRangeByName('AWAY_NUMBERS');
+  const homeNumsRange = ss.getRangeByName('HOME_NUMBERS');
+  const squaresRange = ss.getRangeByName('SQUARES');
+  if (!awayNumsRange || !homeNumsRange || !squaresRange) return;
+
+  const awayNums = awayNumsRange.getValues()[0];
+  const homeNums = homeNumsRange.getValues().map(r => r[0]);
+
+  // 1. Fetch current configurations & payouts rules
+  const rawConfigStr = PropertiesService.getDocumentProperties().getProperty('squares_config');
+  const config = rawConfigStr ? JSON.parse(rawConfigStr) : {};
+  const rules = config.winRules || { adjWrap: true, diagWrap: true };
+  const payoutsConfig = config.payouts || {
+    main: { active: true, splits: [0,0,0,0] }, 
+    inverse: { active: false, splits: [0,0,0,0] }, 
+    adjacent: { active: false, splits: [0,0,0,0] }, 
+    diagonal: { active: false, splits: [0,0,0,0] }
+  };
+  
+  const isPaid = config.isPaid === true && config.cost > 0;
+
+  // 2. Pre-fill memory dictionary for all 100 squares
+  let winsBySquare = {};
+  for(let i=1; i<=100; i++) {
+    winsBySquare[i] = { 
+      badges: [], 
+      payouts: { main: [0,0,0,0], inverse: [0,0,0,0], adjacent: [0,0,0,0], diagonal: [0,0,0,0] } 
+    };
+  }
+
+  let allWinEvents = [];
+
+  // 3. Process every quarter's score
+  for (let q of quarters) {
+    let qIndex = quarters.indexOf(q);
+    const aScore = ss.getRangeByName(`${q}_AWAY`).getValue();
+    const hScore = ss.getRangeByName(`${q}_HOME`).getValue();
+    
+    if (aScore !== '' && hScore !== '') {
+      const aDigit = parseInt(aScore, 10) % 10;
+      const hDigit = parseInt(hScore, 10) % 10;
+      
+      if (!isNaN(aDigit) && !isNaN(hDigit)) {
+        const colIdx = awayNums.findIndex(v => v !== '' && parseInt(v, 10) === aDigit);
+        const rowIdx = homeNums.findIndex(v => v !== '' && parseInt(v, 10) === hDigit);
+        
+        if (colIdx !== -1 && rowIdx !== -1) {
+          const mainSquare = (rowIdx * 10) + colIdx + 1;
+          
+          // MAIN WINNER
+          let pMain = isPaid ? (payoutsConfig.main.splits[qIndex] || 0) : 1;
+          allWinEvents.push({ quarter: q, type: 'main', sq: mainSquare, emoji: `${q}🏆`, payout: pMain, order: 1 });
+
+          // INVERSE WINNER
+          if (payoutsConfig.inverse && payoutsConfig.inverse.active) {
+            const invColIdx = awayNums.findIndex(v => v !== '' && parseInt(v, 10) === hDigit);
+            const invRowIdx = homeNums.findIndex(v => v !== '' && parseInt(v, 10) === aDigit);
+            if (invColIdx !== -1 && invRowIdx !== -1) {
+              const invSq = (invRowIdx * 10) + invColIdx + 1;
+              let pInv = isPaid ? (payoutsConfig.inverse.splits[qIndex] || 0) : 1;
+              allWinEvents.push({ quarter: q, type: 'inverse', sq: invSq, emoji: `${q}🔃`, payout: pInv, order: 2 });
+            }
+          }
+
+          // ADJACENT WINNERS
+          if (payoutsConfig.adjacent && payoutsConfig.adjacent.active) {
+            const adjSquares = getSurroundingSquares(mainSquare, 'adjacent', rules.adjWrap);
+            let pAdj = isPaid ? (payoutsConfig.adjacent.splits[qIndex] || 0) : 1;
+            adjSquares.forEach(win => {
+              allWinEvents.push({ quarter: q, type: 'adjacent', sq: win.sq, emoji: `${q}${win.effect}`, payout: pAdj, order: 3 });
+            });
+          }
+
+          // DIAGONAL WINNERS
+          if (payoutsConfig.diagonal && payoutsConfig.diagonal.active) {
+            const diagSquares = getSurroundingSquares(mainSquare, 'diagonal', rules.diagWrap);
+            let pDiag = isPaid ? (payoutsConfig.diagonal.splits[qIndex] || 0) : 1;
+            diagSquares.forEach(win => {
+              allWinEvents.push({ quarter: q, type: 'diagonal', sq: win.sq, emoji: `${q}${win.effect}`, payout: pDiag, order: 4 });
+            });
+          }
+        }
+      }
+    }
+  }
+
+  // 4. Map Valid Entries to the Win Events
+  const entriesMap = getEntriesMap();
+  let validWinEvents = [];
+
+  allWinEvents.forEach(evt => {
+    let owner = entriesMap[evt.sq];
+    if (owner) {
+      evt.ownerName = owner.name;
+      evt.color = owner.color; // Used for summary sheets
+      validWinEvents.push(evt);
+      
+      // Update Grid Render object
+      winsBySquare[evt.sq].badges.push(evt.emoji);
+      winsBySquare[evt.sq].payouts[evt.type][quarters.indexOf(evt.quarter)] += evt.payout;
+    }
+  });
+
+  // 5. Rebuild Grid Text, Backgrounds, and collect borders for winners
+  let rtvArray = [];
+  let bgArray = [];
+  let fcArray = [];
+  let winningA1s = []; 
+  
+  const sheet = squaresRange.getSheet();
+  const startRow = squaresRange.getRow();
+  const startCol = squaresRange.getColumn();
+
+  for (let r = 0; r < 10; r++) {
+    let rtvRow = [];
+    let bgRow = [];
+    let fcRow = [];
+    
+    for (let c = 0; c < 10; c++) {
+      let sq = (r * 10) + c + 1;
+      let owner = entriesMap[sq];
+      let badges = winsBySquare[sq].badges;
+      
+      if (owner) {
+        let nameStr = owner.name;
+        let badgeStr = badges.join(' ');
+        let fullText = badges.length > 0 ? `${nameStr}\n${badgeStr}` : nameStr;
+        let rtvBuilder = SpreadsheetApp.newRichTextValue().setText(fullText);
+        
+        rtvBuilder.setTextStyle(0, nameStr.length, SpreadsheetApp.newTextStyle().setFontFamily("Lexend").setFontSize(11).setBold(true).build());
+        
+        if (badges.length > 0) {
+          rtvBuilder.setTextStyle(nameStr.length, fullText.length, SpreadsheetApp.newTextStyle().setFontFamily("Lexend").setFontSize(8).setBold(false).build());
+          winningA1s.push(sheet.getRange(startRow + r, startCol + c).getA1Notation());
+        }
+        
+        rtvRow.push(rtvBuilder.build());
+        bgRow.push(owner.color || '#ffffff');
+        fcRow.push(typeof getContrastingTextColor === 'function' ? getContrastingTextColor(owner.color) : '#000000');
+      } else {
+        rtvRow.push(SpreadsheetApp.newRichTextValue().setText('').build());
+        bgRow.push('#ffffff');
+        fcRow.push('#000000');
+      }
+    }
+    rtvArray.push(rtvRow);
+    bgArray.push(bgRow);
+    fcArray.push(fcRow);
+  }
+
+  // Apply Grid Data Instantly
+  squaresRange.setRichTextValues(rtvArray);
+  squaresRange.setBackgrounds(bgArray);
+  squaresRange.setFontColors(fcArray);
+  squaresRange.setWrap(true);
+  
+  squaresRange.setBorder(true, true, true, true, true, true, '#333333', SpreadsheetApp.BorderStyle.SOLID);
+  if (winningA1s.length > 0) {
+    sheet.getRangeList(winningA1s).setBorder(true, true, true, true, null, null, '#000000', SpreadsheetApp.BorderStyle.SOLID_THICK);
+  }
+
+  // 6. Generate Side Sheets
+  writePayoutsToEntries(winsBySquare, isPaid);
+  generateWinnersSheet(ss, validWinEvents, isPaid);
+  generatePayoutsSheet(ss, validWinEvents, isPaid);
+  
+  ss.toast('Grid, Winners, and Payouts updated based on current scores!', '✅ Scoring Complete', 5);
+}
+
+// ==========================================
+// WINNERS & PAYOUTS SHEET GENERATION
+// ==========================================
+
+function generateWinnersSheet(ss, validWinEvents, isPaid) {
+  let sheet = ss.getSheetByName('WINNERS');
+  if (!sheet) {
+    sheet = ss.insertSheet('WINNERS');
+  }
+  sheet.showSheet();
+
+  // Enforce Exactly 4 Columns
+  if (sheet.getMaxColumns() > 4) sheet.deleteColumns(5, sheet.getMaxColumns() - 4);
+  if (sheet.getMaxColumns() < 4) sheet.insertColumnsAfter(sheet.getMaxColumns(), 4 - sheet.getMaxColumns());
+
+  // Setup Header
+  // sheet.getRange("A1").setValue("WINNERS").setFontWeight("bold").setFontFamily("Lexend").setFontSize(12);
+  // sheet.getRange("A2:D2").setValues([["QUARTER", "COLOR", "NAME", "CONTEST"]])
+  //      .setFontWeight("bold").setFontFamily("Lexend").setFontSize(10).setBackground("#000000").setBorder(true, true, true, true, true, true, '#000000', SpreadsheetApp.BorderStyle.SOLID);
+  
+  // Clean Data area
+  let maxRows = sheet.getMaxRows();
+  if (maxRows >= 3) {
+    sheet.getRange(3, 1, maxRows - 2, 4).clearContent().clearFormat().clearDataValidations();
+  }
+
+  if (validWinEvents.length === 0) return;
+
+  // Group by Quarter, then by Owner to combine multi-winners
+  const qGroups = {};
+  validWinEvents.forEach(win => {
+    let qNum = win.quarter.replace('Q', '');
+    if (!qGroups[qNum]) qGroups[qNum] = {};
+    if (!qGroups[qNum][win.ownerName]) {
+      qGroups[qNum][win.ownerName] = { name: win.ownerName, color: win.color, wins: [], winCount: 0 };
+    }
+    
+    let contestStr = win.emoji;
+    if (isPaid) contestStr += ` ($${win.payout})`;
+    
+    qGroups[qNum][win.ownerName].wins.push(contestStr);
+    qGroups[qNum][win.ownerName].winCount++;
+  });
+
+  let output = [];
+  let colors = [];
+  let mergeRanges = [];
+  let startRow = 3;
+  let minRows = 999;
+
+  // Process Quarters Sorted 1 to 4
+  Object.keys(qGroups).sort().forEach(qNum => {
+    let members = Object.values(qGroups[qNum]);
+    // Sort combined winners by Most Wins, then alphabetically
+    members.sort((a, b) => b.winCount - a.winCount || a.name.localeCompare(b.name));
+    
+    let qStart = startRow + output.length;
+    let numRows = members.length;
+    minRows = Math.min(minRows, numRows);
+
+    members.forEach((m, idx) => {
+      output.push([idx === 0 ? qNum : "", "", m.name, m.wins.join(', ')]);
+      colors.push(['#ffffff', m.color || '#ffffff', '#ffffff', '#ffffff']);
+    });
+
+    mergeRanges.push({ row: qStart, numRows: numRows });
+  });
+
+  // Most Wins Summary Row
+  let globalWinCounts = {};
+  validWinEvents.forEach(win => globalWinCounts[win.ownerName] = (globalWinCounts[win.ownerName] || 0) + 1);
+  let maxWins = Math.max(...Object.values(globalWinCounts));
+  let topWinners = Object.keys(globalWinCounts).filter(n => globalWinCounts[n] === maxWins);
+  
+  let summaryText = "";
+  if (maxWins > 0) {
+    summaryText = topWinners.length === 1 ? `${topWinners[0]} (${maxWins} Wins)` : `${topWinners.length}-Way Tie With ${maxWins} Wins`;
+  }
+  
+  output.push(["MOST WINS", "", "", summaryText]);
+  colors.push(['#f3f3f3', '#f3f3f3', '#f3f3f3', '#f3f3f3']);
+
+  // Match Sheet Rows to Array Size precisely
+  let requiredRows = 2 + output.length;
+  if (sheet.getMaxRows() < requiredRows) {
+    sheet.insertRowsAfter(sheet.getMaxRows(), requiredRows - sheet.getMaxRows());
+  } else if (sheet.getMaxRows() > requiredRows) {
+    sheet.deleteRows(requiredRows + 1, sheet.getMaxRows() - requiredRows);
+  }
+
+  // Apply Values and Formatting
+  let dataRange = sheet.getRange(3, 1, output.length, 4);
+  dataRange.setValues(output);
+  
+  dataRange.setBackgrounds(colors);
+  dataRange.setFontFamily("Lexend").setFontSize(10).setVerticalAlignment('middle');
+  
+  // Merge final row summary of most wins
+  sheet.getRange(output.length + 2, 1, 1, 3).merge().setHorizontalAlignment('center');
+  
+  // 1. Standard thin borders everywhere first
+  dataRange.setBorder(true, true, true, true, true, true, '#000000', SpreadsheetApp.BorderStyle.SOLID);
+
+  // Determine uniform Quarter font size (Max 50, scales up by 10 per row)
+  let qFontSize = Math.min(50, Math.max(10, minRows * 10));
+
+  // 2. Apply Merges, Font Sizes, and Thick Borders
+  mergeRanges.forEach(m => {
+    // Apply thick bottom border to the ENTIRE block's bounding box
+    sheet.getRange(m.row, 1, m.numRows, 4)
+         .setBorder(null, null, true, null, null, null, '#000000', SpreadsheetApp.BorderStyle.SOLID_THICK);
+
+    if (m.numRows > 1) {
+      sheet.getRange(m.row, 1, m.numRows, 1).merge();
+    }
+    sheet.getRange(m.row, 1)
+         .setFontSize(qFontSize)
+         .setHorizontalAlignment('center')
+         .setVerticalAlignment('middle')
+         .setFontWeight('bold');
+  });
+
+  // Summary Row Merge and Styling
+  let sumRow = 2 + output.length;
+  sheet.getRange(sumRow, 1, 1, 4).setFontWeight('bold');
+  sheet.getRange(sumRow, 3, 1, 2).setHorizontalAlignment('center');
+  sheet.getRange(sumRow, 1, 1, 2).merge().setHorizontalAlignment('center'); // Merge "TOTAL" and "COLOR"
+}
+
+function generatePayoutsSheet(ss, validWinEvents, isPaid) {
+  let sheet = ss.getSheetByName('PAYOUTS');
+  
+  if (!isPaid) {
+    if (sheet) sheet.hideSheet();
+    return;
+  }
+
+  if (!sheet) {
+    sheet = ss.insertSheet('PAYOUTS');
+  }
+  sheet.showSheet();
+
+  // Enforce Exactly 4 Columns
+  if (sheet.getMaxColumns() > 4) sheet.deleteColumns(5, sheet.getMaxColumns() - 4);
+  if (sheet.getMaxColumns() < 4) sheet.insertColumnsAfter(sheet.getMaxColumns(), 4 - sheet.getMaxColumns());
+
+  // sheet.getRange("A1").setValue("PAYOUTS").setFontWeight("bold").setFontFamily("Lexend").setFontSize(12);
+  // sheet.getRange("A2:D2").setValues([["COLOR", "MEMBER", "TOTAL PAYOUT", "WINNINGS BREAKDOWN"]])
+  //      .setFontWeight("bold").setFontFamily("Lexend").setFontSize(10).setBackground("#000000").setBorder(true, true, true, true, true, true, '#000000', SpreadsheetApp.BorderStyle.SOLID);
+
+  let maxRows = sheet.getMaxRows();
+  if (maxRows >= 3) {
+    sheet.getRange(3, 1, maxRows - 2, 4).clearContent().clearFormat();
+  }
+
+  if (validWinEvents.length === 0) return;
+
+  // Aggregate by owner
+  let payoutsMap = {};
+  validWinEvents.forEach(win => {
+    if (!payoutsMap[win.ownerName]) {
+      payoutsMap[win.ownerName] = { name: win.ownerName, color: win.color, total: 0, breakdowns: [] };
+    }
+    payoutsMap[win.ownerName].total += win.payout;
+    payoutsMap[win.ownerName].breakdowns.push(`${win.emoji} ($${win.payout})`);
+  });
+
+  let payoutRows = Object.values(payoutsMap);
+  payoutRows.sort((a, b) => b.total - a.total); // Sort desc by payout
+
+  let output = [];
+  let colors = [];
+  payoutRows.forEach(p => {
+    output.push(["", p.name, p.total, p.breakdowns.join(', ')]);
+    colors.push([p.color || '#ffffff', '#ffffff', '#ffffff', '#ffffff']);
+  });
+  
+  // Manage exact row count
+  let requiredRows = 2 + output.length;
+  if (sheet.getMaxRows() < requiredRows) {
+    sheet.insertRowsAfter(sheet.getMaxRows(), requiredRows - sheet.getMaxRows());
+  } else if (sheet.getMaxRows() > requiredRows) {
+    sheet.deleteRows(requiredRows + 1, sheet.getMaxRows() - requiredRows);
+  }
+
+  if (output.length > 0) {
+    let dataRange = sheet.getRange(3, 1, output.length, 4);
+    dataRange.setValues(output);
+    dataRange.setBackgrounds(colors);
+    dataRange.setFontFamily("Lexend").setFontSize(10).setVerticalAlignment('middle');
+    
+    // Standard borders
+    dataRange.setBorder(true, true, true, true, true, true, '#000000', SpreadsheetApp.BorderStyle.SOLID);
+    
+    // Format Currency
+    sheet.getRange(3, 3, output.length, 1).setNumberFormat('$#,##0');
+  }
+}
+
+/**
+ * Writes the calculated payouts into the designated named ranges on the ENTRIES sheet.
+ */
+function writePayoutsToEntries(winsBySquare, isPaid) {
   const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const resultsRange = ss.getRangeByName('RESULTS');
-  if (!resultsRange) return;
+  const sqRange = ss.getRangeByName('ENTRIES_SQUARE');
+  if (!sqRange) return;
   
-  // Find winner
-  let winnerName = "";
-  for (let row of entriesData) {
-    if (Number(row[2]) === squareNumber) {
-      winnerName = row[1];
-      break;
+  const sqVals = sqRange.getValues();
+  const numRows = sqVals.length;
+  
+  const categories = [
+    { key: 'main', suffix: '' },
+    { key: 'inverse', suffix: 'I' },
+    { key: 'adjacent', suffix: 'A' },
+    { key: 'diagonal', suffix: 'D' }
+  ];
+  
+  const outData = {};
+  for (let cat of categories) {
+    outData[cat.key] = [[], [], [], []]; 
+  }
+  
+  for (let i = 0; i < numRows; i++) {
+    const sq = Number(sqVals[i][0]);
+    
+    if (sq >= 1 && sq <= 100 && winsBySquare[sq]) {
+      const p = winsBySquare[sq].payouts;
+      for (let cat of categories) {
+        for (let q = 0; q < 4; q++) {
+          let val = p[cat.key][q];
+          outData[cat.key][q].push([val > 0 ? val : '']);
+        }
+      }
+    } else {
+      for (let cat of categories) {
+        for (let q = 0; q < 4; q++) {
+          outData[cat.key][q].push(['']);
+        }
+      }
     }
   }
   
-  // Calculate payout
-  const config = readConfig_();
-  let payout = 1;
-  if (config.isPaid && config.cost > 0) {
-    const docProps = PropertiesService.getDocumentProperties();
-    const savedProps = JSON.parse(docProps.getProperty('squares_config') || '{}');
-    const commishCut = savedProps.commishCut || 0;
-    const splits = savedProps.payoutSplits || [25, 25, 25, 25];
-    
-    const totalSquares = entriesData.length;
-    const totalPot = totalSquares * config.cost;
-    const potAfterCommish = totalPot - commishCut;
-    
-    let splitPercent = 25;
-    if (quarter === 'Q1') splitPercent = splits[0] || 25;
-    else if (quarter === 'Q2') splitPercent = splits[1] || 25;
-    else if (quarter === 'Q3') splitPercent = splits[2] || 25;
-    else if (quarter === 'Q4') splitPercent = splits[3] || 25;
-    
-    payout = potAfterCommish * (splitPercent / 100);
-  }
-  
-  const qIndex = parseInt(quarter.replace('Q', '')) - 1;
-  if (qIndex < resultsRange.getNumRows()) {
-    resultsRange.getCell(qIndex + 1, 1).setValue(winnerName);
-    if (resultsRange.getNumColumns() >= 2) {
-      resultsRange.getCell(qIndex + 1, 2).setValue(payout);
-    } else {
-      resultsRange.offset(0, 1, resultsRange.getNumRows(), 1).getCell(qIndex + 1, 1).setValue(payout);
+  const formatStr = isPaid ? '$#,##0' : '0';
+  for (let cat of categories) {
+    for (let q = 0; q < 4; q++) {
+      const rangeName = `ENTRIES_WIN_Q${q + 1}${cat.suffix}`;
+      const targetRange = ss.getRangeByName(rangeName);
+      
+      if (targetRange) {
+        const writeRange = targetRange.getSheet().getRange(targetRange.getRow(), targetRange.getColumn(), numRows, 1);
+        writeRange.setValues(outData[cat.key][q]);
+        writeRange.setNumberFormat(formatStr);
+      }
     }
   }
 }
 
+// ==========================================
+// WINNER HELPERS & GEOMETRY
+// ==========================================
+
+function getEntriesMap() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const map = {};
+  
+  const sqRange = ss.getRangeByName('ENTRIES_SQUARE');
+  const nameRange = ss.getRangeByName('ENTRIES_NAME');
+  const colorRange = ss.getRangeByName('ENTRIES_COLOR');
+  
+  if (!sqRange || !nameRange || !colorRange) return map;
+  
+  const sqVals = sqRange.getValues();
+  const nameVals = nameRange.getValues();
+  const colorVals = colorRange.getValues();
+  
+  for (let i = 0; i < sqVals.length; i++) {
+    const sq = Number(sqVals[i][0]);
+    const name = String(nameVals[i][0]).trim();
+    const color = String(colorVals[i][0]).trim();
+    
+    if (name && sq >= 1 && sq <= 100) {
+      map[sq] = { name: name, color: color };
+    }
+  }
+  return map;
+}
+
+function getSurroundingSquares(squareNumber, type, wrap) {
+  if (!squareNumber || squareNumber < 1 || squareNumber > 100) return [];
+  
+  const r = Math.floor((squareNumber - 1) / 10);
+  const c = (squareNumber - 1) % 10;
+  let offsets = [];
+  
+  if (type === 'adjacent') {
+    offsets = [
+      { dr: -1, dc: 0, icon: '⬆️' },
+      { dr: 1,  dc: 0, icon: '⬇️' },
+      { dr: 0,  dc: -1, icon: '⬅️' },
+      { dr: 0,  dc: 1, icon: '➡️' }
+    ];
+  } else if (type === 'diagonal') {
+    offsets = [
+      { dr: -1, dc: -1, icon: '↖️' },
+      { dr: -1, dc: 1,  icon: '↗️' },
+      { dr: 1,  dc: -1, icon: '↙️' },
+      { dr: 1,  dc: 1,  icon: '↘️' }
+    ];
+  } else {
+    return [];
+  }
+  
+  const results = [];
+  for (let offset of offsets) {
+    let newR = r + offset.dr;
+    let newC = c + offset.dc;
+    
+    if (wrap) {
+      if (newR < 0) newR = 9;
+      if (newR > 9) newR = 0;
+      if (newC < 0) newC = 9;
+      if (newC > 9) newC = 0;
+    } else {
+      if (newR < 0 || newR > 9 || newC < 0 || newC > 9) continue;
+    }
+    
+    results.push({ sq: (newR * 10) + newC + 1, effect: offset.icon });
+  }
+  return results;
+}
+
+// ==========================================
+// 7. SHEET RESET & MAINTENANCE
+// ==========================================
 // ==========================================
 // 7. SHEET RESET & MAINTENANCE
 // ==========================================
@@ -976,12 +1508,12 @@ function saveAndReset() {
   let check = true;
 
   if (allScoresEntered) {
-    let save = ui.alert('Backup Contest', "All quarter scores are entered!\n\nWould you like to make a copy of the entries sheet for your records?", ui.ButtonSet.YES_NO_CANCEL);
+    let save = ui.alert('Backup Contest', "All quarter scores are entered!\n\nWould you like to make a backup copy of the entries, winners, and payouts sheets for your records?", ui.ButtonSet.YES_NO_CANCEL);
     if (save == ui.Button.YES) {
-      archiveEntriesSheet();
+      archiveContest(); 
       warning = ui.Button.OK;
       check = false;
-    } else if (ui.Button.NO) {
+    } else if (save == ui.Button.NO) {
       warning = ui.Button.OK;
       check = false;
     }
@@ -1034,7 +1566,23 @@ function saveAndReset() {
     }
     
     const sheetSquares = ss.getSheetByName('SQUARES');
-    if (sheetSquares) sheetSquares.clearConditionalFormatRules();
+    if (sheetSquares) {
+      sheetSquares.clearConditionalFormatRules();
+      sheetSquares.hideRows(2, 3);
+    }
+
+    // Clear and Hide Summary Sheets using .clear() (wipes content + format safely)
+    const winnersSheet = ss.getSheetByName('WINNERS');
+    if (winnersSheet) {
+      winnersSheet.clear();
+      winnersSheet.hideSheet();
+    }
+    
+    const payoutsSheet = ss.getSheetByName('PAYOUTS');
+    if (payoutsSheet) {
+      payoutsSheet.clear();
+      payoutsSheet.hideSheet();
+    }
     
     setWinnerFormats();
     setTeamFormats();
@@ -1042,7 +1590,7 @@ function saveAndReset() {
     // Revert doc properties
     const docProps = PropertiesService.getDocumentProperties();
     docProps.deleteProperty('squares_config');
-
+    
     ss.toast('Successfully reset sheet.', '🔄 Reset');
     Logger.log('🔄 Reset: Successfully reset sheet.');
   } else {
@@ -1050,92 +1598,106 @@ function saveAndReset() {
     Logger.log('❌ Canceled: Canceled reset operation.');
   }
 }
+/**
+ * Creates hidden, timestamped backups of ENTRIES, WINNERS, and PAYOUTS.
+ * Safely copies ENTRIES without duplicating Named Ranges, trims empty rows/cols, 
+ * and handles naming collisions.
+ */
+function archiveContest() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const tz = ss.getSpreadsheetTimeZone();
+  const timestamp = Utilities.formatDate(new Date(), tz, 'MM-dd-yy HH:mm');
 
-function archiveEntriesSheet() {
-  // 1. Get saved Document Properties
+  // Fetch the configuration to get the team abbreviations
   const docProps = PropertiesService.getDocumentProperties();
   const savedProps = JSON.parse(docProps.getProperty('squares_config') || '{}');
-  const home = savedProps.home;
-  const away = savedProps.away;
-
-  // 2. Format current date as YYYY-MM-DD
-  const today = new Date();
-  const dateString = Utilities.formatDate(today, Session.getScriptTimeZone(), 'yyyy-MM-dd');
-
-  // 3. Get source spreadsheet and the ENTRIES sheet
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
-  const sourceSheet = ss.getSheetByName('ENTRIES') || ss.getActiveSheet();
+  // Fallbacks included just in case
+  const home = savedProps.homeTeam || savedProps.home; 
+  const away = savedProps.awayTeam || savedProps.away;
   
-  // 4. Update the "ENTRIES_DATE_SAVED" named range on the source sheet with the current date
+  // Create prefix name `AWAY@HOME`
+  const prefix = (away && home) ? `${away}@${home}` : null;
+
+  // 1. Update the "ENTRIES_DATE_SAVED" named range on the source sheet BEFORE copying
+  // This ensures the timestamp gets stamped onto the backup copy!
   const dateSavedRange = ss.getRangeByName('ENTRIES_DATE_SAVED');
   if (dateSavedRange) {
-    dateSavedRange.setValue(dateString);
-  } else {
-    Logger.log('Warning: Named range "ENTRIES_DATE_SAVED" was not found.');
+    dateSavedRange.setValue(timestamp);
   }
 
-  // 5. Build the new tab name `${away}@${home} - ${dateString}`
-  const newTabName = away && home ? `${away}@${home} - ${dateString}` : `CONTEST - ${dateString}`;
-
-  // If a tab with this name already exists, delete or handle it to prevent duplicate tab errors
-  let targetSheet = ss.getSheetByName(newTabName);
-  if (!targetSheet) {
-    targetSheet = ss.insertSheet(newTabName);
-  } else {
-    targetSheet.clear(); // Clear existing tab contents if re-running on the same day
-  }
-
-  // 6. Copy values, formatting, colors, and styles from source tab to target tab
-  // Range.copyTo() WORKS here because both sheets are in the SAME spreadsheet!
-  const sourceRange = sourceSheet.getDataRange();
-  const targetRange = targetSheet.getRange(
-    sourceRange.getRow(),
-    sourceRange.getColumn(),
-    sourceRange.getNumRows(),
-    sourceRange.getNumColumns()
-  );
-
-  // Copy formatting (fonts, backgrounds, borders, alignment, number formats)
-  sourceRange.copyTo(targetRange, SpreadsheetApp.CopyPasteType.PASTE_FORMAT, false);
-  // Copy values (use PASTE_NORMAL if you want formulas copied instead of static values)
-  sourceRange.copyTo(targetRange, SpreadsheetApp.CopyPasteType.PASTE_VALUES, false);
-
-  // Copy column widths so the layout matches perfectly
-  const numColumns = sourceRange.getNumColumns();
-  for (let col = 1; col <= numColumns; col++) {
-    targetSheet.setColumnWidth(col, sourceSheet.getColumnWidth(col));
-  }
-
-  // 7. Clear values in named ranges on the original source sheet ("ENTRIES")
-  const namedRanges = ss.getNamedRanges();
-  namedRanges.forEach(namedRange => {
-    const range = namedRange.getRange();
-    // Verify the named range belongs to the ENTRIES source sheet
-    if (range.getSheet().getName() === sourceSheet.getName()) {
-      // Keep ENTRIES_DATE_SAVED intact, clear all other named ranges (e.g., ENTRIES)
-      if (namedRange.getName() !== 'ENTRIES_DATE_SAVED') {
-        range.clearContent(); // Clears cell values while keeping colors/formatting/borders intact
-      }
+  // --- HELPER FUNCTIONS ---
+  // Helper to ensure a unique sheet name or overwrite an existing one safely
+  function getSafeTargetSheet(sheetName) {
+    let sheet = ss.getSheetByName(sheetName);
+    if (!sheet) {
+      sheet = ss.insertSheet(sheetName);
+    } else {
+      sheet.clear(); 
     }
-  });
-
-  // 8. Delete extra rows and columns on the target sheet to match the source range exactly
-  const maxRows = targetSheet.getMaxRows();
-  const maxCols = targetSheet.getMaxColumns();
-  const lastRow = sourceRange.getLastRow();
-  const lastCol = sourceRange.getLastColumn();
-
-  if (maxRows > lastRow) {
-    targetSheet.deleteRows(lastRow + 1, maxRows - lastRow);
-  }
-  if (maxCols > lastCol) {
-    targetSheet.deleteColumns(lastCol + 1, maxCols - lastCol);
+    return sheet;
   }
 
-  Logger.log(`💾 Successfully archived "${sourceSheet.getName()}" to new tab "${newTabName}".`);
-  ss.toast(`Saved entries sheet of ${home && away ? away + "@" + home : "contest"} to a separate sheet successfully`, `💾 Saved Successfully`);
+  // Helper to delete extra rows/cols to prevent file bloat
+  function trimSheet(sheet, lastRow, lastCol) {
+    const maxRows = sheet.getMaxRows();
+    const maxCols = sheet.getMaxColumns();
+    if (maxRows > lastRow && lastRow > 0) sheet.deleteRows(lastRow + 1, maxRows - lastRow);
+    if (maxCols > lastCol && lastCol > 0) sheet.deleteColumns(lastCol + 1, maxCols - lastCol);
+  }
+  // ------------------------
+
+  // 2. Archive ENTRIES (Special copy to avoid duplicating Named Ranges)
+  const entries = ss.getSheetByName('ENTRIES');
+  let eName = prefix ? `${prefix} - ${timestamp}` : `CONTEST - ${timestamp}`;
+  
+  if (entries) {
+    const eCopy = getSafeTargetSheet(eName);
+    const dataRange = entries.getDataRange();
+    
+    // Copy formats and values safely
+    dataRange.copyTo(eCopy.getRange(1, 1), SpreadsheetApp.CopyPasteType.PASTE_FORMAT, false);
+    dataRange.copyTo(eCopy.getRange(1, 1), SpreadsheetApp.CopyPasteType.PASTE_VALUES, false);
+    
+    // Copy column widths
+    const numColumns = dataRange.getNumColumns();
+    for (let col = 1; col <= numColumns; col++) {
+      eCopy.setColumnWidth(col, entries.getColumnWidth(col));
+    }
+    
+    // Trim, freeze, and hide
+    trimSheet(eCopy, dataRange.getLastRow(), numColumns);
+    eCopy.setFrozenRows(entries.getFrozenRows());
+    eCopy.setFrozenColumns(entries.getFrozenColumns());
+    eCopy.hideSheet();
+  }
+
+  // 3. Archive WINNERS (using copyTo)
+  const winners = ss.getSheetByName('WINNERS');
+  if (winners) {
+    let wName = prefix ? `${prefix} WINNERS - ${timestamp}` : `WINNERS - ${timestamp}`;
+    let existing = ss.getSheetByName(wName);
+    if (existing) ss.deleteSheet(existing); // Remove first to prevent copyTo naming collision
+    
+    const wCopy = winners.copyTo(ss);
+    wCopy.setName(wName);
+    wCopy.hideSheet();
+  }
+  
+  // 4. Archive PAYOUTS (using copyTo, if it exists and is active)
+  const payouts = ss.getSheetByName('PAYOUTS');
+  if (payouts && !payouts.isSheetHidden()) {
+    let pName = prefix ? `${prefix} PAYOUTS - ${timestamp}` : `PAYOUTS - ${timestamp}`;
+    let existing = ss.getSheetByName(pName);
+    if (existing) ss.deleteSheet(existing);
+    
+    const pCopy = payouts.copyTo(ss);
+    pCopy.setName(pName);
+    pCopy.hideSheet();
+  }
+
+  Logger.log(`💾 Successfully archived contest to new tabs prefixed with "${prefix || 'CONTEST'}".`);
+  ss.toast(`Saved backup sheets for ${prefix ? prefix : "contest"} successfully.`, `💾 Saved Successfully`);
 }
-
 // ==========================================
 // 8. WINNER & CONDITIONAL FORMATTING
 // ==========================================
@@ -1494,12 +2056,66 @@ function getWebAppUrl() {
   if (url && /\/exec$/.test(url)) return { url: url, note: '' };
   if (url) {
     return {
-      url: live,
+      url: url,
       note: 'This looks like the test (/dev) link, which only editors can open. ' +
             'Use the guide to set up a deployment.'
     };
   }
   return { url: '', note: 'No deployment found. Deploy the script as a web app first, then try again.' };
+}
+
+/**
+ * Checks web app deployment status and routes to either the link dialog 
+ * or the deployment guide based on the payload returned by getWebAppUrl().
+ */
+function firstDeployWebAppUrlChecker() {
+  const ui = SpreadsheetApp.getUi();
+  let webAppPayload = null;
+
+  // 1. Safely call getWebAppUrl
+  try {
+    if (typeof getWebAppUrl === 'function') {
+      webAppPayload = getWebAppUrl();
+    } else {
+      Logger.log('getWebAppUrl function is not defined.');
+    }
+  } catch (err) {
+    Logger.log(`Error calling getWebAppUrl: ${err.message}`);
+  }
+
+  // Helper to validate basic URL string format
+  const isValidUrl = (urlStr) => {
+    if (typeof urlStr !== 'string') return false;
+    return urlStr.startsWith('http://') || urlStr.startsWith('https://');
+  };
+
+  // 2. Validate payload structure: url is a valid URL string and note is empty/blank
+  const isDeployed = webAppPayload && 
+                     isValidUrl(webAppPayload.url) && 
+                     (!webAppPayload.note || webAppPayload.note.trim() === '');
+
+  // 3. Route to dialog or deployment prompt
+  if (isDeployed) {
+    if (typeof showSquaresLinkDialog === 'function') {
+      showSquaresLinkDialog();
+    } else {
+      ui.alert('Error', 'showSquaresLinkDialog function was not found.', ui.ButtonSet.OK);
+    }
+  } else {
+    const response = ui.alert(
+      'Web Form Not Deployed',
+      'The web form deployment URL was not found or is not properly configured.\n\nWould you like to view the step-by-step instructions for deploying the Web App?',
+      ui.ButtonSet.OK_CANCEL
+    );
+
+    if (response === ui.Button.OK) {
+      if (typeof showWebAppDeploymentGuide === 'function') {
+        showWebAppDeploymentGuide();
+      } else {
+        ui.alert('Error', 'showWebAppDeploymentGuide function was not found.', ui.ButtonSet.OK);
+      }
+    }
+  }
 }
 
 // Fallback for when getUrl() only returns the /dev link
@@ -1591,3 +2207,75 @@ const LINK_DIALOG_HTML_ = `
   </script>
 </body>
 </html>`;
+
+// ==========================================
+// 12. START GAME & VISIBILITY TOOLS
+// ==========================================
+
+function startGame() {
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ui = SpreadsheetApp.getUi();
+  
+  // 1. Check if the grid is full
+  const entriesSheet = ss.getSheetByName('ENTRIES');
+  let entriesCount = 0;
+  if (entriesSheet) {
+    entriesCount = Math.max(0, entriesSheet.getLastRow() - 1);
+  }
+  
+  if (entriesCount < 100) {
+    const response = ui.alert(
+      '⚠️ Grid Incomplete', 
+      `There are only ${entriesCount}/100 squares claimed.\n\nAre you sure you want to start the game and reveal the scoring rows?`, 
+      ui.ButtonSet.YES_NO
+    );
+    if (response !== ui.Button.YES) return;
+  }
+  
+  // 2. Unhide Rows 2, 3, and 4 on the SQUARES sheet
+  const squaresSheet = ss.getSheetByName('SQUARES');
+  if (squaresSheet) {
+    squaresSheet.showRows(2, 3); // Unhides 3 rows starting at row 2
+  }
+  
+  // 3. Unhide WINNERS sheet
+  let winnersSheet = ss.getSheetByName('WINNERS');
+  if (winnersSheet) winnersSheet.showSheet();
+  
+  // 4. Handle PAYOUTS sheet visibility
+  const configStr = PropertiesService.getDocumentProperties().getProperty('squares_config');
+  const config = configStr ? JSON.parse(configStr) : {};
+  const isPaid = config.isPaid === true && config.cost > 0;
+  
+  let payoutsSheet = ss.getSheetByName('PAYOUTS');
+  if (isPaid && payoutsSheet) {
+    payoutsSheet.showSheet();
+  } else if (!isPaid && payoutsSheet) {
+    payoutsSheet.hideSheet();
+  }
+  
+  // 5. Show Explanatory Dialog
+  let msg = "The Quarterly Scoring cells (Rows 2-4) have been revealed on the SQUARES board!\n\n" +
+            "HOW TO PLAY:\n" +
+            "As the game progresses, simply enter the Home and Away scores for each quarter into those top cells.\n\n" +
+            "The board will automatically evaluate the numbers, flag the winning squares with emojis and borders, and record all outcomes to the ENTRIES and WINNERS sheets.";
+  
+  if (isPaid) {
+    msg += "\n\nSince this is a paid pool, the financial totals and leaderboard have also been revealed on the PAYOUTS sheet.";
+  }
+  
+  ui.alert('▶️ Game Started!', msg, ui.ButtonSet.OK);
+}
+
+/**
+ * Instantly hides the PAYOUTS sheet if the pool changes from Paid to Free
+ */
+function updatePayoutsSheetVisibility(isPaid) {
+  if (isPaid) return; // If it's paid, we leave it alone (usually revealed on Start Game)
+  
+  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const sheet = ss.getSheetByName('PAYOUTS');
+  if (sheet) {
+    sheet.hideSheet();
+  }
+}
