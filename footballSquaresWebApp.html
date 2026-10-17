@@ -1351,9 +1351,8 @@
       function renderPaymentMethods() {
           const container = document.getElementById('paymentMethodsSection');
           const ledger = document.getElementById('paymentLedger');
-
+          
           let methodsData = (serverData && serverData.config) ? serverData.config.paymentMethods : null;
-
           // Gracefully hide if no data exists
           if (!methodsData) {
               container.style.display = 'none';
@@ -1362,39 +1361,25 @@
 
           let activeMethods = [];
 
-          // CASE A: Server passes an Array of objects
-          if (Array.isArray(methodsData)) {
-              activeMethods = methodsData.filter(m => {
-                  // Check common property names where you might have stored the handle
-                  const val = m.value || m.account || m.handle;
-                  return val && String(val).trim() !== '';
-              }).map(m => ({
-                  key: m.key,
-                  label: m.label,
-                  value: String(m.value || m.account || m.handle).trim(),
-                  multiline: m.multiline
-              }));
-          }
-          // CASE B: Server passes a dictionary Object (e.g. { venmo: "@myvenmo" })
-          else if (typeof methodsData === 'object') {
-              const labelMap = {
-                  paypal: 'PayPal',
-                  venmo: 'Venmo',
-                  cashapp: 'Cash App',
-                  zelle: 'Zelle',
-                  other: 'Other'
-              };
-              for (const [key, val] of Object.entries(methodsData)) {
-                  if (val && String(val).trim() !== '') {
-                      activeMethods.push({
-                          key: key,
-                          label: labelMap[key] || key,
-                          value: String(val).trim(),
-                          multiline: key === 'other'
-                      });
-                  }
+          // Server passes a dictionary Object (e.g. { venmo: "@myvenmo" })
+          const labelMap = {
+              paypal: 'PayPal',
+              venmo: 'Venmo',
+              cashapp: 'Cash App',
+              zelle: 'Zelle',
+              other: 'Other'
+          };
+          Object.keys(methodsData).forEach(method => {
+              const paymentOption = methodsData[method];
+              if (paymentOption.enabled == 'true' || paymentOption.enabled) {
+                activeMethods.push({
+                      key: method,
+                      label: labelMap[method] || method,
+                      value: String(method === 'other' ? paymentOption.paymentDetails : paymentOption.paymentHandle).trim(),
+                      multiline: method === 'other'
+                  });
               }
-          }
+          });
 
           // Hide the whole section if no valid handles were found
           if (activeMethods.length === 0) {
